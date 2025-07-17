@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import AthleteFormEdit from './AthleteFormEdit';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, 
@@ -199,7 +198,7 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
           </button>
 
           <button
-            onClick={() => navigate('/athletes/AthleteFormEdit')}
+            onClick={() => setMode('fullForm')}
             className={`p-4 rounded-lg border-2 transition-all text-left ${
               mode === 'fullForm' 
                 ? 'border-blue-500 bg-blue-50' 
@@ -331,6 +330,22 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
             </div>
           </div>
         </form>
+      )}
+
+      {/* Full Form Mode */}
+      {mode === 'fullForm' && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Redirecting to Full Form...</h3>
+            <p className="text-gray-600 mb-6">Taking you to the complete athlete profile form.</p>
+            <button
+              onClick={() => navigate('/athletes/new/full')}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Continue to Full Form
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

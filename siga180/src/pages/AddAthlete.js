@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Layout from '../components/layout/Layout';
-import AthleteForm from '../components/athletes/AthleteForm';
+import AthleteFormWithMagicLink from '../components/athletes/AthleteForm';
 import { useAthletes } from '../hooks/useAthletes';
 
 const AddAthlete = () => {
@@ -27,10 +27,10 @@ const AddAthlete = () => {
           </Link>
           
           <h1 className="text-2xl font-bold text-gray-900 mt-4">Add New Athlete</h1>
-          <p className="text-gray-600 mt-1">Fill in the information below to add a new athlete to your roster</p>
+          <p className="text-gray-600 mt-1">Choose how you want to add a new athlete to your roster</p>
         </div>
 
-        <AthleteForm onSubmit={handleSubmit} />
+        <AthleteFormWithMagicLink onSubmit={handleSubmit} />
       </div>
     </Layout>
   );

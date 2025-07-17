@@ -6,7 +6,9 @@ import Dashboard from './pages/Dashboard';
 import Athletes from './pages/Athletes';
 import AthleteDetail from './pages/AthleteDetail';
 import AddAthlete from './pages/AddAthlete';
+import AddAthleteFull from './pages/AddAthleteFull';
 import EditAthlete from './pages/EditAthlete';
+import AthleteSetup from './pages/AthleteSetup';
 import WorkoutPlans from './pages/WorkoutPlans';
 import Analytics from './pages/Analytics';
 import Nutrition from './pages/Nutrition';
@@ -59,6 +61,9 @@ const AppRoutes = () => {
           <Register />
         </PublicRoute>
       } />
+      <Route path="/athlete-setup" element={
+        <AthleteSetup />
+      } />
       
       {/* Protected Routes */}
       <Route path="/" element={
@@ -74,6 +79,11 @@ const AppRoutes = () => {
       <Route path="/athletes/new" element={
         <ProtectedRoute>
           <AddAthlete />
+        </ProtectedRoute>
+      } />
+      <Route path="/athletes/new/full" element={
+        <ProtectedRoute>
+          <AddAthleteFull />
         </ProtectedRoute>
       } />
       <Route path="/athletes/:id" element={
