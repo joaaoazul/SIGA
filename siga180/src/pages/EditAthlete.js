@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import AthleteForm from '../components/athletes/AthleteForm';
+import AthleteFormEdit from '../components/athletes/AthleteFormEdit';
 import { useAthletes } from '../hooks/useAthletes';
 
 const EditAthlete = () => {
@@ -52,7 +53,7 @@ const EditAthlete = () => {
           <p className="text-gray-600 mt-1">Update the information for {athlete.name}</p>
         </div>
 
-        <AthleteForm 
+        <AthleteFormEdit 
           athlete={athlete} 
           onSubmit={handleSubmit} 
           isEditing={true}

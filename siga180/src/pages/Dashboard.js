@@ -16,7 +16,7 @@ const Dashboard = () => {
     {
       id: 1,
       time: '1:00 - 2:00',
-      client: 'Emily Adams',
+      client: 'Ambrosio Silva',
       activity: 'Strength Training',
       avatar: 'https://i.pravatar.cc/150?img=1',
       status: 'scheduled'
