@@ -1,434 +1,231 @@
-// src/components/athletes/AthleteList.js
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
-  Plus, Search, Filter, MoreVertical, Edit, Trash2, Eye, 
-  Phone, Mail, Target, TrendingUp, TrendingDown, Users,
-  Calendar, CheckCircle, AlertTriangle, Clock
+  Search, 
+  Filter, 
+  MoreVertical,
+  CheckCircle,
+  XCircle,
+  PauseCircle,
+  Calendar,
+  Edit,
+  Trash2,
+  Eye
 } from 'lucide-react';
 
-const AthleteList = ({ athletes = [], onEdit, onDelete, onView, onAdd }) => {
-  // Estados para controlo da interface
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState('asc');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
+const AthleteList = ({ 
+  athletes, 
+  searchQuery, 
+  setSearchQuery, 
+  filterStatus, 
+  setFilterStatus 
+}) => {
+  const [showDropdown, setShowDropdown] = useState(null);
 
-  // Opções de filtros
-  const filterOptions = [
-    { value: 'all', label: 'Todos os Atletas', count: athletes.length },
-    { value: 'active', label: 'Ativos', count: athletes.filter(a => a.membership.status === 'active').length },
-    { value: 'inactive', label: 'Inativos', count: athletes.filter(a => a.membership.status === 'inactive').length },
-    { value: 'beginner', label: 'Iniciantes', count: athletes.filter(a => a.healthInfo.fitnessLevel === 'beginner').length },
-    { value: 'intermediate', label: 'Intermédios', count: athletes.filter(a => a.healthInfo.fitnessLevel === 'intermediate').length },
-    { value: 'advanced', label: 'Avançados', count: athletes.filter(a => a.healthInfo.fitnessLevel === 'advanced').length }
-  ];
-
-  // Função para filtrar e ordenar atletas
-  const filteredAndSortedAthletes = useMemo(() => {
-    let filtered = athletes;
-
-    // Aplicar filtro de pesquisa
-    if (searchTerm) {
-      filtered = filtered.filter(athlete => 
-        athlete.personalInfo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        athlete.personalInfo.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        athlete.goals.primary.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'paused':
+        return <PauseCircle className="h-4 w-4 text-yellow-600" />;
+      case 'inactive':
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      default:
+        return null;
     }
+  };
 
-    // Aplicar filtros de categoria
-    if (selectedFilter !== 'all') {
-      switch (selectedFilter) {
-        case 'active':
-        case 'inactive':
-          filtered = filtered.filter(athlete => athlete.membership.status === selectedFilter);
-          break;
-        case 'beginner':
-        case 'intermediate':
-        case 'advanced':
-          filtered = filtered.filter(athlete => athlete.healthInfo.fitnessLevel === selectedFilter);
-          break;
-        default:
-          break;
-      }
-    }
-
-    // Aplicar ordenação
-    filtered.sort((a, b) => {
-      let aValue, bValue;
-      
-      switch (sortBy) {
-        case 'name':
-          aValue = a.personalInfo.name.toLowerCase();
-          bValue = b.personalInfo.name.toLowerCase();
-          break;
-        case 'progress':
-          aValue = a.metrics.progress.overallProgress || 0;
-          bValue = b.metrics.progress.overallProgress || 0;
-          break;
-        case 'attendance':
-          aValue = a.metrics.attendance.percentage || 0;
-          bValue = b.metrics.attendance.percentage || 0;
-          break;
-        case 'joinDate':
-          aValue = new Date(a.membership.startDate);
-          bValue = new Date(b.membership.startDate);
-          break;
-        default:
-          aValue = a.personalInfo.name.toLowerCase();
-          bValue = b.personalInfo.name.toLowerCase();
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }, [athletes, searchTerm, selectedFilter, sortBy, sortOrder]);
-
-  // Função para calcular estatísticas
-  const statistics = useMemo(() => {
-    const activeAthletes = athletes.filter(a => a.membership.status === 'active');
-    const avgProgress = athletes.reduce((sum, a) => sum + (a.metrics.progress.overallProgress || 0), 0) / athletes.length;
-    const avgAttendance = athletes.reduce((sum, a) => sum + (a.metrics.attendance.percentage || 0), 0) / athletes.length;
-    
-    return {
-      total: athletes.length,
-      active: activeAthletes.length,
-      avgProgress: Math.round(avgProgress),
-      avgAttendance: Math.round(avgAttendance)
-    };
-  }, [athletes]);
-
-  // Componente do cabeçalho com estatísticas
-  const StatisticsHeader = () => (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-600">Total Atletas</p>
-            <p className="text-2xl font-bold text-gray-900">{statistics.total}</p>
-          </div>
-          <Users className="h-8 w-8 text-blue-500" />
-        </div>
-      </div>
-      
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-600">Ativos</p>
-            <p className="text-2xl font-bold text-green-600">{statistics.active}</p>
-          </div>
-          <CheckCircle className="h-8 w-8 text-green-500" />
-        </div>
-      </div>
-      
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-600">Progresso Médio</p>
-            <p className="text-2xl font-bold text-purple-600">{statistics.avgProgress}%</p>
-          </div>
-          <TrendingUp className="h-8 w-8 text-purple-500" />
-        </div>
-      </div>
-      
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-600">Frequência Média</p>
-            <p className="text-2xl font-bold text-yellow-600">{statistics.avgAttendance}%</p>
-          </div>
-          <Calendar className="h-8 w-8 text-yellow-500" />
-        </div>
-      </div>
-    </div>
-  );
-
-  // Componente dos controles de pesquisa e filtros
-  const SearchAndFilters = () => (
-    <div className="bg-white p-4 rounded-lg border border-gray-200 mb-6">
-      <div className="flex flex-col md:flex-row gap-4">
-        {/* Barra de pesquisa */}
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Pesquisar por nome, email ou objetivo..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-
-        {/* Filtros */}
-        <div className="flex gap-2">
-          <select
-            value={selectedFilter}
-            onChange={(e) => setSelectedFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {filterOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label} ({option.count})
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={`${sortBy}-${sortOrder}`}
-            onChange={(e) => {
-              const [sort, order] = e.target.value.split('-');
-              setSortBy(sort);
-              setSortOrder(order);
-            }}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="name-asc">Nome (A-Z)</option>
-            <option value="name-desc">Nome (Z-A)</option>
-            <option value="progress-desc">Maior Progresso</option>
-            <option value="progress-asc">Menor Progresso</option>
-            <option value="attendance-desc">Maior Frequência</option>
-            <option value="attendance-asc">Menor Frequência</option>
-            <option value="joinDate-desc">Mais Recentes</option>
-            <option value="joinDate-asc">Mais Antigos</option>
-          </select>
-
-          <button
-            onClick={onAdd}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden md:inline">Novo Atleta</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Componente do card individual do atleta
-  const AthleteCard = ({ athlete }) => {
-    const [showDropdown, setShowDropdown] = useState(false);
-    
-    const getStatusColor = (status) => {
-      switch (status) {
-        case 'active': return 'bg-green-100 text-green-800';
-        case 'inactive': return 'bg-red-100 text-red-800';
-        case 'suspended': return 'bg-yellow-100 text-yellow-800';
-        default: return 'bg-gray-100 text-gray-800';
-      }
-    };
-
-    const getFitnessLevelColor = (level) => {
-      switch (level) {
-        case 'beginner': return 'bg-blue-100 text-blue-800';
-        case 'intermediate': return 'bg-purple-100 text-purple-800';
-        case 'advanced': return 'bg-orange-100 text-orange-800';
-        default: return 'bg-gray-100 text-gray-800';
-      }
-    };
-
-    const getInitials = (name) => {
-      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const getStatusBadge = (status) => {
+    const statusClasses = {
+      active: 'bg-green-100 text-green-800',
+      paused: 'bg-yellow-100 text-yellow-800',
+      inactive: 'bg-red-100 text-red-800'
     };
 
     return (
-      <div className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
-        {/* Header do card */}
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-medium">
-                  {getInitials(athlete.personalInfo.name)}
-                </span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">{athlete.personalInfo.name}</h3>
-                <p className="text-sm text-gray-600">{athlete.goals.primary}</p>
-              </div>
-            </div>
-            
-            <div className="relative">
-              <button
-                onClick={() => setShowDropdown(!showDropdown)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <MoreVertical className="h-4 w-4 text-gray-500" />
-              </button>
-              
-              {showDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                  <button
-                    onClick={() => {
-                      onView(athlete.id);
-                      setShowDropdown(false);
-                    }}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <Eye className="h-4 w-4" />
-                    Ver Detalhes
-                  </button>
-                  <button
-                    onClick={() => {
-                      onEdit(athlete.id);
-                      setShowDropdown(false);
-                    }}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => {
-                      onDelete(athlete.id);
-                      setShowDropdown(false);
-                    }}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600 flex items-center gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Remover
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Informações principais */}
-        <div className="p-4">
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Status</p>
-              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(athlete.membership.status)}`}>
-                {athlete.membership.status === 'active' ? 'Ativo' : 'Inativo'}
-              </span>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Nível</p>
-              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getFitnessLevelColor(athlete.healthInfo.fitnessLevel)}`}>
-                {athlete.healthInfo.fitnessLevel === 'beginner' ? 'Iniciante' : 
-                 athlete.healthInfo.fitnessLevel === 'intermediate' ? 'Intermédio' : 'Avançado'}
-              </span>
-            </div>
-          </div>
-
-          {/* Métricas */}
-          <div className="space-y-3">
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Progresso Geral</span>
-                <span className="font-medium">{athlete.metrics.progress.overallProgress || 0}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${athlete.metrics.progress.overallProgress || 0}%` }}
-                ></div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Frequência</span>
-                <span className="font-medium">{athlete.metrics.attendance.percentage || 0}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${athlete.metrics.attendance.percentage || 0}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Informações de contacto */}
-          <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
-            <div className="flex space-x-2">
-              <a 
-                href={`tel:${athlete.personalInfo.phone}`}
-                className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                <Phone className="h-4 w-4" />
-              </a>
-              <a 
-                href={`mailto:${athlete.personalInfo.email}`}
-                className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                <Mail className="h-4 w-4" />
-              </a>
-            </div>
-            
-            <div className="text-xs text-gray-500">
-              Sequência: {athlete.metrics.attendance.streak || 0} dias
-            </div>
-          </div>
-        </div>
-      </div>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClasses[status]}`}>
+        {getStatusIcon(status)}
+        <span className="ml-1 capitalize">{status}</span>
+      </span>
     );
   };
 
+  const getLastCheckIn = (athlete) => {
+    const lastCheckIn = athlete.lastCheckIn || null;
+    if (!lastCheckIn) return <span className="text-gray-400">No check-in</span>;
+    
+    const today = new Date();
+    const checkInDate = new Date(lastCheckIn);
+    const diffDays = Math.floor((today - checkInDate) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return <span className="text-green-600">Today</span>;
+    if (diffDays === 1) return <span className="text-yellow-600">Yesterday</span>;
+    return <span className="text-red-600">{diffDays} days ago</span>;
+  };
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Cabeçalho da página */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Gestão de Atletas</h1>
-        <p className="text-gray-600">Gerir os seus clientes e acompanhar progressos</p>
-      </div>
-
-      {/* Estatísticas */}
-      <StatisticsHeader />
-
-      {/* Pesquisa e filtros */}
-      <SearchAndFilters />
-
-      {/* Lista de atletas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredAndSortedAthletes.length > 0 ? (
-          filteredAndSortedAthletes.map(athlete => (
-            <AthleteCard 
-              key={athlete.id} 
-              athlete={athlete}
-            />
-          ))
-        ) : (
-          <div className="col-span-full">
-            <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum atleta encontrado</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {searchTerm || selectedFilter !== 'all' 
-                  ? 'Tente ajustar os filtros de pesquisa.' 
-                  : 'Comece adicionando o seu primeiro atleta.'
-                }
-              </p>
-              {(!searchTerm && selectedFilter === 'all') && (
-                <div className="mt-6">
-                  <button
-                    onClick={onAdd}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2 mx-auto"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Adicionar Primeiro Atleta
-                  </button>
-                </div>
-              )}
+    <>
+      {/* Filters */}
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Search */}
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search athletes by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
           </div>
-        )}
+          
+          {/* Status Filter */}
+          <div className="flex items-center space-x-2">
+            <Filter className="h-5 w-5 text-gray-400" />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      {/* Rodapé com informações */}
-      {filteredAndSortedAthletes.length > 0 && (
-        <div className="mt-8 text-center text-sm text-gray-500">
-          A mostrar {filteredAndSortedAthletes.length} de {athletes.length} atletas
-        </div>
-      )}
-    </div>
+      {/* Athletes Table */}
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Athlete
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Plan
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Last Check-in
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Next Measurement
+              </th>
+              <th className="relative px-6 py-3">
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {athletes.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="px-6 py-12 text-center">
+                  <div className="text-gray-500">
+                 
+                    <p className="text-lg font-medium">No athletes found</p>
+                    <p className="text-sm mt-1">Start by adding your first athlete</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              athletes.map((athlete) => (
+                <tr key={athlete.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <Link to={`/athletes/${athlete.id}`} className="flex items-center hover:opacity-80">
+                      <div className="h-10 w-10 flex-shrink-0">
+                        <img 
+                          className="h-10 w-10 rounded-full object-cover" 
+                          src={athlete.avatar || `https://i.pravatar.cc/150?u=${athlete.id}`} 
+                          alt="" 
+                        />
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {athlete.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {athlete.email}
+                        </div>
+                      </div>
+                    </Link>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(athlete.status || 'active')}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {athlete.plan || 'No plan assigned'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {getLastCheckIn(athlete)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {athlete.nextMeasurement ? (
+                      <span className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-1 text-gray-400" />
+                        {new Date(athlete.nextMeasurement).toLocaleDateString()}
+                      </span>
+                    ) : (
+                      <span className="text-orange-600 flex items-center">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        Schedule
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowDropdown(showDropdown === athlete.id ? null : athlete.id)}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <MoreVertical className="h-5 w-5" />
+                      </button>
+                      {showDropdown === athlete.id && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                          <Link
+                            to={`/athletes/${athlete.id}`}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            onClick={() => setShowDropdown(null)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </Link>
+                          <Link
+                            to={`/athletes/${athlete.id}/edit`}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            onClick={() => setShowDropdown(null)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </Link>
+                          <button
+                            className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-gray-100"
+                            onClick={() => {
+                              // Implement delete functionality
+                              setShowDropdown(null);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 };
 

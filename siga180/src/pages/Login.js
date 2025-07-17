@@ -57,12 +57,17 @@ const Login = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo */}
         <div className="flex justify-center">
-          <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-2xl">S</span>
-          </div>
+       <img
+  src={require('../assets/logo_header.png')} 
+  alt="Logo"
+  className="w-16 h-16 rounded-full object-cover"
+/>
+
         </div>
-        
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h1 className="text-center text-3xl font-bold text-gray-900 mt-4">
+          180 Performance Unit </h1>
+
+        <h2 className="mt-6 text-center text-xl font-extrabold text-gray-900">
           Sign in to your account
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">

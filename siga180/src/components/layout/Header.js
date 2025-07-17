@@ -1,5 +1,6 @@
 import React from 'react';
 import { Bell, Plus, ChevronDown } from 'lucide-react';
+import logoHeader from '../../assets/logo_header.png';
 
 const Header = ({ title = 'Home', user }) => {
   return (
@@ -8,14 +9,19 @@ const Header = ({ title = 'Home', user }) => {
         {/* Left side - Logo and Title */}
         <div className="flex items-center space-x-8">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">180</span>
-            </div>
+            <img
+  src={logoHeader}
+  alt="Logo"
+  className="w-8 h-8 rounded-full object-cover"
+/>
             <span className="text-xl font-bold text-gray-900">180 Performance Unit</span>
           </div>
-          <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 bg-red-100 rounded-lg px-4 py-1">
+  {title}
+</h1>
         </div>
         
+
         {/* Right side - Actions */}
         <div className="flex items-center space-x-4">
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">

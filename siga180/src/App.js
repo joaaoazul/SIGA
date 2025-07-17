@@ -4,6 +4,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // Pages
 import Dashboard from './pages/Dashboard';
 import Athletes from './pages/Athletes';
+import AthleteDetail from './pages/AthleteDetail';
+import AddAthlete from './pages/AddAthlete';
+import EditAthlete from './pages/EditAthlete';
 import WorkoutPlans from './pages/WorkoutPlans';
 import Analytics from './pages/Analytics';
 import Nutrition from './pages/Nutrition';
@@ -63,9 +66,24 @@ const AppRoutes = () => {
           <Dashboard />
         </ProtectedRoute>
       } />
-      <Route path="/Athletes" element={
+      <Route path="/athletes" element={
         <ProtectedRoute>
           <Athletes />
+        </ProtectedRoute>
+      } />
+      <Route path="/athletes/new" element={
+        <ProtectedRoute>
+          <AddAthlete />
+        </ProtectedRoute>
+      } />
+      <Route path="/athletes/:id" element={
+        <ProtectedRoute>
+          <AthleteDetail />
+        </ProtectedRoute>
+      } />
+      <Route path="/athletes/:id/edit" element={
+        <ProtectedRoute>
+          <EditAthlete />
         </ProtectedRoute>
       } />
       <Route path="/workouts" element={
@@ -73,17 +91,17 @@ const AppRoutes = () => {
           <WorkoutPlans />
         </ProtectedRoute>
       } />
-      <Route path="/Analytics" element={
+      <Route path="/analytics" element={
         <ProtectedRoute>
           <Analytics />
         </ProtectedRoute>
       } />
-      <Route path="/Nutrition" element={
+      <Route path="/nutrition" element={
         <ProtectedRoute>
           <Nutrition />
         </ProtectedRoute>
       } />
-      <Route path="/Messages" element={
+      <Route path="/messages" element={
         <ProtectedRoute>
           <Messages />
         </ProtectedRoute>
@@ -93,13 +111,6 @@ const AppRoutes = () => {
       <Route path="/settings" element={
         <ProtectedRoute>
           <Settings />
-        </ProtectedRoute>
-      } />
-      
-      {/* Athlete Detail Route */}
-      <Route path="/athletes/:id" element={
-        <ProtectedRoute>
-          <AthleteDetail />
         </ProtectedRoute>
       } />
       
@@ -134,7 +145,5 @@ function App() {
 export default App;
 
 // Placeholder components - remove when actual pages are created
-
 const Settings = () => <div>Settings Page</div>;
-const AthleteDetail = () => <div>Athlete Detail Page</div>;
-const WorkoutDetail = () => <div>Workout Detail Page</div>; 
+const WorkoutDetail = () => <div>Workout Detail Page</div>;

@@ -92,9 +92,11 @@ const Register = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo */}
         <div className="flex justify-center">
-          <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-2xl">S</span>
-          </div>
+             <img
+  src={require('../assets/logo_header.png')} 
+  alt="Logo"
+  className="w-16 h-16 rounded-full object-cover"
+/>
         </div>
         
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
