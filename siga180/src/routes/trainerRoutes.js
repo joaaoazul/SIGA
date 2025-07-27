@@ -1,3 +1,4 @@
+// src/routes/TrainerRoutes.js
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 
@@ -10,7 +11,9 @@ import AddAthleteFull from '../modules/trainer/pages/AddAthleteFull';
 import EditAthlete from '../modules/trainer/pages/EditAthlete';
 import WorkoutPlans from '../modules/trainer/pages/WorkoutPlans';
 import Analytics from '../modules/trainer/pages/Analytics';
-import Nutrition from '../modules/trainer/pages/Nutrition';
+
+// IMPORTANTE: Importar o módulo Nutrition correto (pasta, não ficheiro)
+import NutritionModule from '../modules/trainer/pages/Nutrition'; // Isto vai buscar o index.js da pasta
 
 // Páginas Partilhadas
 import Messages from '../modules/shared/pages/Messages';
@@ -26,7 +29,7 @@ export const TrainerRoutes = () => {
       <Route path="/athletes/:id/edit" element={<EditAthlete />} />
       <Route path="/workouts" element={<WorkoutPlans />} />
       <Route path="/analytics" element={<Analytics />} />
-      <Route path="/nutrition" element={<Nutrition />} />
+      <Route path="/nutrition/*" element={<NutritionModule />} />
       <Route path="/messages" element={<Messages />} />
     </Routes>
   );
