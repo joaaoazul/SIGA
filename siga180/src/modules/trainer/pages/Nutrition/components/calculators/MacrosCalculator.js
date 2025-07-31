@@ -1,578 +1,617 @@
-// src/modules/trainer/pages/Nutrition/components/calculators/MacrosCalculator.js
 import React, { useState, useEffect } from 'react';
 import {
-  PieChart,
   Calculator,
+  User,
+  Activity,
   Target,
   Info,
+  Copy,
   Save,
   ChevronDown,
-  Activity,
   Zap,
   TrendingUp,
-  AlertCircle,
-  Check,
-  Copy,
-  Share2
+  Brain,
+  Scale,
+  Ruler,
+  Calendar,
+  BarChart
 } from 'lucide-react';
 
-const MacrosCalculator = ({ onSave, athleteData }) => {
-  // Form state
-  const [formData, setFormData] = useState({
-    calories: 2500,
-    goal: 'maintenance',
-    activityLevel: 'moderate',
-    proteinPreference: 'moderate',
-    dietType: 'balanced',
-    weight: athleteData?.weight || 75,
-    height: athleteData?.height || 175,
-    age: athleteData?.age || 30,
-    gender: athleteData?.gender || 'male',
-    athleteName: athleteData?.name || ''
+const MacroCalculatorView = () => {
+  const [calculatorData, setCalculatorData] = useState({
+    // Dados básicos
+    weight: 84,
+    age: 52,
+    height: 172,
+    gender: 'male',
+    activityLevel: 1.55,
+    
+    // Objetivo
+    goal: 'maintenance', // cutting, maintenance, bulking
+    deficitPercentage: 20, // para cutting
+    surplusPercentage: 10, // para bulking
+    
+    // Preferências de macros
+    macroProfile: 'balanced', // balanced, highProtein, lowCarb, custom
+    proteinGramsPerKg: 1.8,
+    fatPercentage: 30,
+    
+    // Advanced
+    adaptiveMode: false,
+    refeeds: false,
+    cyclingCarbs: false
   });
 
-  // Calculation results
   const [results, setResults] = useState(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const [activeProtocol, setActiveProtocol] = useState('standard');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedFormula, setSelectedFormula] = useState('all'); // all, harris, mifflin, average
 
-  // Diet protocols
-  const protocols = {
-    standard: {
-      name: 'Padrão Equilibrado',
-      description: 'Distribuição tradicional recomendada',
-      macros: {
-        maintenance: { protein: 25, carbs: 45, fat: 30 },
-        cutting: { protein: 35, carbs: 35, fat: 30 },
-        bulking: { protein: 25, carbs: 50, fat: 25 }
-      }
+  // Activity Levels com descrições detalhadas
+  const activityLevels = [
+    { 
+      value: 1.2, 
+      label: 'Sedentário', 
+      description: 'Pouco ou nenhum exercício',
+      examples: 'Trabalho de escritório, caminhadas leves'
     },
-    keto: {
-      name: 'Cetogénica',
-      description: 'Alta gordura, muito baixo carboidrato',
-      macros: {
-        all: { protein: 20, carbs: 5, fat: 75 }
-      }
+    { 
+      value: 1.375, 
+      label: 'Pouco Activo', 
+      description: 'Exercício leve 1-3 dias/semana',
+      examples: 'Yoga, caminhadas rápidas, ginásio ocasional'
     },
-    highProtein: {
-      name: 'Alta Proteína',
-      description: 'Maximizar preservação muscular',
-      macros: {
-        maintenance: { protein: 35, carbs: 35, fat: 30 },
-        cutting: { protein: 40, carbs: 30, fat: 30 },
-        bulking: { protein: 30, carbs: 45, fat: 25 }
-      }
+    { 
+      value: 1.55, 
+      label: 'Moderadamente Activo', 
+      description: 'Exercício moderado 3-5 dias/semana',
+      examples: 'Musculação regular, corrida, desportos'
     },
-    zone: {
-      name: 'Dieta Zone',
-      description: '40-30-30 (Carbs-Proteína-Gordura)',
-      macros: {
-        all: { protein: 30, carbs: 40, fat: 30 }
-      }
+    { 
+      value: 1.725, 
+      label: 'Muito Activo', 
+      description: 'Exercício intenso 6-7 dias/semana',
+      examples: 'Atleta, treinos intensos diários'
     },
-    iifym: {
-      name: 'IIFYM Flexível',
-      description: 'If It Fits Your Macros - personalizado',
-      macros: {
-        custom: true
-      }
+    { 
+      value: 1.9, 
+      label: 'Extremamente Activo', 
+      description: 'Exercício muito intenso, trabalho físico',
+      examples: 'Atleta profissional, trabalho braçal pesado'
     }
-  };
+  ];
 
-  // Goal descriptions
-  const goals = {
-    cutting: {
-      name: 'Perda de Gordura',
-      description: 'Défice calórico com alta proteína',
-      color: 'red',
-      icon: TrendingUp,
-      proteinMultiplier: 2.2
-    },
-    maintenance: {
-      name: 'Manutenção',
-      description: 'Manter peso e composição atual',
-      color: 'blue',
-      icon: Activity,
-      proteinMultiplier: 2.0
-    },
-    bulking: {
-      name: 'Ganho de Massa',
-      description: 'Superávit para crescimento muscular',
-      color: 'green',
-      icon: Zap,
-      proteinMultiplier: 1.8
-    }
-  };
+  // Fórmulas de cálculo
+  const calculateBMR = () => {
+    const w = calculatorData.weight;
+    const h = calculatorData.height;
+    const a = calculatorData.age;
+    const isMale = calculatorData.gender === 'male';
 
-  // Calculate macros
-  const calculateMacros = () => {
-    const { calories, goal, weight, dietType } = formData;
-    
-    // Get protocol
-    const protocol = protocols[activeProtocol];
-    let macroPercentages;
-    
-    if (protocol.macros.custom) {
-      // Custom IIFYM calculation
-      const proteinGrams = weight * goals[goal].proteinMultiplier;
-      const proteinCalories = proteinGrams * 4;
-      const proteinPercentage = (proteinCalories / calories) * 100;
-      
-      const fatPercentage = 25; // Default fat
-      const carbsPercentage = 100 - proteinPercentage - fatPercentage;
-      
-      macroPercentages = {
-        protein: Math.round(proteinPercentage),
-        carbs: Math.round(carbsPercentage),
-        fat: Math.round(fatPercentage)
-      };
-    } else {
-      macroPercentages = protocol.macros[goal] || protocol.macros.all;
-    }
+    const harris = isMale 
+      ? 88.362 + (13.397 * w) + (4.799 * h) - (5.677 * a)
+      : 447.593 + (9.247 * w) + (3.098 * h) - (4.330 * a);
 
-    // Calculate grams
-    const proteinCalories = (calories * macroPercentages.protein) / 100;
-    const carbsCalories = (calories * macroPercentages.carbs) / 100;
-    const fatCalories = (calories * macroPercentages.fat) / 100;
+    const mifflin = isMale
+      ? (10 * w) + (6.25 * h) - (5 * a) + 5
+      : (10 * w) + (6.25 * h) - (5 * a) - 161;
 
-    const macros = {
-      protein: {
-        grams: Math.round(proteinCalories / 4),
-        calories: Math.round(proteinCalories),
-        percentage: macroPercentages.protein,
-        perKg: (proteinCalories / 4 / weight).toFixed(1)
-      },
-      carbs: {
-        grams: Math.round(carbsCalories / 4),
-        calories: Math.round(carbsCalories),
-        percentage: macroPercentages.carbs,
-        perKg: (carbsCalories / 4 / weight).toFixed(1)
-      },
-      fat: {
-        grams: Math.round(fatCalories / 9),
-        calories: Math.round(fatCalories),
-        percentage: macroPercentages.fat,
-        perKg: (fatCalories / 9 / weight).toFixed(1)
-      },
-      fiber: {
-        grams: Math.round(calories / 1000 * 14), // 14g per 1000 kcal
-        min: 25,
-        max: 38
-      }
+    const average = (harris + mifflin) / 2;
+
+    return {
+      harris: Math.round(harris),
+      mifflin: Math.round(mifflin),
+      average: Math.round(average)
     };
+  };
 
-    // Meal distribution
-    const mealDistribution = calculateMealDistribution(calories, macros);
+  const calculateMacros = () => {
+    const bmr = calculateBMR();
+    const tdee = Math.round(bmr.average * calculatorData.activityLevel);
+    
+    // Calcular calorias alvo baseado no objetivo
+    let targetCalories = tdee;
+    if (calculatorData.goal === 'cutting') {
+      targetCalories = Math.round(tdee * (1 - calculatorData.deficitPercentage / 100));
+    } else if (calculatorData.goal === 'bulking') {
+      targetCalories = Math.round(tdee * (1 + calculatorData.surplusPercentage / 100));
+    }
+
+    // Calcular macros
+    const proteinGrams = Math.round(calculatorData.weight * calculatorData.proteinGramsPerKg);
+    const proteinCalories = proteinGrams * 4;
+    
+    const fatCalories = Math.round(targetCalories * (calculatorData.fatPercentage / 100));
+    const fatGrams = Math.round(fatCalories / 9);
+    
+    const carbsCalories = targetCalories - proteinCalories - fatCalories;
+    const carbsGrams = Math.round(carbsCalories / 4);
+
+    // Calcular percentagens reais
+    const proteinPercentage = Math.round((proteinCalories / targetCalories) * 100);
+    const carbsPercentage = Math.round((carbsCalories / targetCalories) * 100);
+    const fatPercentage = Math.round((fatCalories / targetCalories) * 100);
+
+    // Outros nutrientes
+    const fiber = Math.round(targetCalories / 1000 * 14);
+    const water = Math.round(calculatorData.weight * 35);
 
     setResults({
-      totalCalories: calories,
-      macros,
-      mealDistribution,
-      protocol: protocol.name,
-      goal: goals[goal].name
+      bmr,
+      tdee,
+      targetCalories,
+      deficit: tdee - targetCalories,
+      macros: {
+        protein: proteinGrams,
+        carbs: carbsGrams,
+        fat: fatGrams,
+        fiber,
+        water
+      },
+      calories: {
+        protein: proteinCalories,
+        carbs: carbsCalories,
+        fat: fatCalories
+      },
+      percentages: {
+        protein: proteinPercentage,
+        carbs: carbsPercentage,
+        fat: fatPercentage
+      }
     });
   };
 
-  // Calculate meal distribution
-  const calculateMealDistribution = (totalCalories, macros) => {
-    const distributions = {
-      '3meals': [
-        { name: 'Pequeno-Almoço', percentage: 30 },
-        { name: 'Almoço', percentage: 40 },
-        { name: 'Jantar', percentage: 30 }
-      ],
-      '4meals': [
-        { name: 'Pequeno-Almoço', percentage: 25 },
-        { name: 'Almoço', percentage: 35 },
-        { name: 'Lanche', percentage: 15 },
-        { name: 'Jantar', percentage: 25 }
-      ],
-      '5meals': [
-        { name: 'Pequeno-Almoço', percentage: 20 },
-        { name: 'Meio da Manhã', percentage: 15 },
-        { name: 'Almoço', percentage: 30 },
-        { name: 'Lanche', percentage: 15 },
-        { name: 'Jantar', percentage: 20 }
-      ],
-      '6meals': [
-        { name: 'Pequeno-Almoço', percentage: 18 },
-        { name: 'Meio da Manhã', percentage: 12 },
-        { name: 'Almoço', percentage: 25 },
-        { name: 'Lanche', percentage: 12 },
-        { name: 'Jantar', percentage: 23 },
-        { name: 'Ceia', percentage: 10 }
-      ]
-    };
-
-    const selectedDist = distributions['4meals']; // Default 4 meals
-    
-    return selectedDist.map(meal => ({
-      ...meal,
-      calories: Math.round((totalCalories * meal.percentage) / 100),
-      protein: Math.round((macros.protein.grams * meal.percentage) / 100),
-      carbs: Math.round((macros.carbs.grams * meal.percentage) / 100),
-      fat: Math.round((macros.fat.grams * meal.percentage) / 100)
-    }));
-  };
-
-  // Handle form changes
-  const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  // Save calculation
-  const handleSave = () => {
-    if (results && onSave) {
-      onSave({
-        ...formData,
-        ...results,
-        calculatedAt: new Date().toISOString()
-      });
-    }
-  };
-
-  // Auto-calculate on changes
   useEffect(() => {
-    if (formData.calories && formData.weight) {
-      calculateMacros();
-    }
-  }, [formData, activeProtocol]);
+    calculateMacros();
+  }, [calculatorData]);
+
+  const updateData = (field, value) => {
+    setCalculatorData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const copyToClipboard = () => {
+    if (!results) return;
+    
+    const text = `
+PLANO NUTRICIONAL
+================
+TMB: ${results.bmr.average} kcal
+TDEE: ${results.tdee} kcal
+Calorias Alvo: ${results.targetCalories} kcal
+${results.deficit !== 0 ? `Défice/Superávit: ${results.deficit > 0 ? '-' : '+'}${Math.abs(results.deficit)} kcal` : ''}
+
+MACROS
+------
+Proteína: ${results.macros.protein}g (${results.percentages.protein}%)
+Carboidratos: ${results.macros.carbs}g (${results.percentages.carbs}%)
+Gordura: ${results.macros.fat}g (${results.percentages.fat}%)
+Fibra: ${results.macros.fiber}g
+Água: ${results.macros.water}ml
+    `;
+    
+    navigator.clipboard.writeText(text);
+    // Mostrar toast de sucesso
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">
-            Calculadora de Macronutrientes
-          </h3>
-          <p className="text-sm text-gray-600 mt-1">
-            Distribua os macronutrientes baseado nos objetivos
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-            <Share2 className="h-5 w-5" />
-          </button>
-          <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-            <Copy className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Coluna Esquerda - Inputs */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Dados Básicos */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <User className="h-5 w-5 text-blue-600" />
+                Dados do Cliente
+              </h3>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Peso (kg)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={calculatorData.weight}
+                      onChange={(e) => updateData('weight', parseFloat(e.target.value))}
+                      className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      step="0.1"
+                    />
+                    <Scale className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
 
-      {/* Form */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left Column */}
-        <div className="space-y-4">
-          {/* Calories Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Calorias Totais (kcal)
-            </label>
-            <input
-              type="number"
-              value={formData.calories}
-              onChange={(e) => handleChange('calories', parseInt(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Use o valor do TDEE calculado anteriormente
-            </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Idade
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={calculatorData.age}
+                      onChange={(e) => updateData('age', parseInt(e.target.value))}
+                      className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                    <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Altura (cm)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={calculatorData.height}
+                      onChange={(e) => updateData('height', parseInt(e.target.value))}
+                      className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                    <Ruler className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Género
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => updateData('gender', 'male')}
+                      className={`px-3 py-2 rounded-lg border-2 transition-all ${
+                        calculatorData.gender === 'male'
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      Homem
+                    </button>
+                    <button
+                      onClick={() => updateData('gender', 'female')}
+                      className={`px-3 py-2 rounded-lg border-2 transition-all ${
+                        calculatorData.gender === 'female'
+                          ? 'border-pink-500 bg-pink-50 text-pink-700'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      Mulher
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Goal Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Objetivo
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {Object.entries(goals).map(([key, goal]) => {
-                const Icon = goal.icon;
-                return (
+          {/* Actividade Física */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Activity className="h-5 w-5 text-green-600" />
+                Nível de Actividade Física (AF)
+              </h3>
+            </div>
+            <div className="p-6">
+              <div className="space-y-3">
+                {activityLevels.map((level) => (
+                  <label
+                    key={level.value}
+                    className={`block p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      calculatorData.activityLevel === level.value
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="radio"
+                        name="activityLevel"
+                        value={level.value}
+                        checked={calculatorData.activityLevel === level.value}
+                        onChange={(e) => updateData('activityLevel', parseFloat(e.target.value))}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-gray-900">{level.label}</p>
+                          <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                            x{level.value}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{level.description}</p>
+                        <p className="text-xs text-gray-500 mt-1 italic">{level.examples}</p>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Objetivo e Configuração de Macros */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Target className="h-5 w-5 text-purple-600" />
+                Objetivo e Macros
+              </h3>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Objetivo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Objetivo Principal
+                </label>
+                <div className="grid grid-cols-3 gap-3">
                   <button
-                    key={key}
-                    onClick={() => handleChange('goal', key)}
-                    className={`p-3 rounded-lg border-2 transition-all ${
-                      formData.goal === key
+                    onClick={() => updateData('goal', 'cutting')}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      calculatorData.goal === 'cutting'
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <TrendingUp className="h-6 w-6 mx-auto mb-2 text-red-600 rotate-180" />
+                    <p className="font-medium">Definição</p>
+                    <p className="text-xs text-gray-600 mt-1">Perder gordura</p>
+                  </button>
+                  
+                  <button
+                    onClick={() => updateData('goal', 'maintenance')}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      calculatorData.goal === 'maintenance'
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    <Icon className={`h-5 w-5 mx-auto mb-1 text-${goal.color}-600`} />
-                    <p className="text-xs font-medium">{goal.name}</p>
+                    <BarChart className="h-6 w-6 mx-auto mb-2 text-blue-600" />
+                    <p className="font-medium">Manutenção</p>
+                    <p className="text-xs text-gray-600 mt-1">Manter peso</p>
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Weight Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Peso Corporal (kg)
-            </label>
-            <input
-              type="number"
-              value={formData.weight}
-              onChange={(e) => handleChange('weight', parseFloat(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        {/* Right Column - Protocol Selection */}
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Protocolo de Dieta
-            </label>
-            <div className="space-y-2">
-              {Object.entries(protocols).map(([key, protocol]) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveProtocol(key)}
-                  className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                    activeProtocol === key
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900">{protocol.name}</p>
-                      <p className="text-xs text-gray-600">{protocol.description}</p>
-                    </div>
-                    {activeProtocol === key && (
-                      <Check className="h-5 w-5 text-blue-600" />
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Results */}
-      {results && (
-        <div className="bg-gray-50 rounded-lg p-6 space-y-6">
-          {/* Macros Summary */}
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-4">Distribuição de Macronutrientes</h4>
-            
-            {/* Visual Chart */}
-            <div className="mb-6">
-              <MacrosChart macros={results.macros} />
-            </div>
-
-            {/* Detailed Values */}
-            <div className="grid grid-cols-3 gap-4">
-              <MacroCard
-                name="Proteína"
-                value={results.macros.protein}
-                color="green"
-                icon="🥩"
-              />
-              <MacroCard
-                name="Carboidratos"
-                value={results.macros.carbs}
-                color="orange"
-                icon="🌾"
-              />
-              <MacroCard
-                name="Gordura"
-                value={results.macros.fat}
-                color="yellow"
-                icon="🥑"
-              />
-            </div>
-
-            {/* Fiber */}
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="text-2xl">🥬</span>
-                  <span className="font-medium text-blue-900">Fibra Recomendada</span>
+                  
+                  <button
+                    onClick={() => updateData('goal', 'bulking')}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      calculatorData.goal === 'bulking'
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <TrendingUp className="h-6 w-6 mx-auto mb-2 text-green-600" />
+                    <p className="font-medium">Volume</p>
+                    <p className="text-xs text-gray-600 mt-1">Ganhar massa</p>
+                  </button>
                 </div>
-                <span className="text-lg font-semibold text-blue-700">
-                  {results.macros.fiber.grams}g/dia
-                </span>
               </div>
-              <p className="text-xs text-blue-700 mt-1">
-                Mínimo: {results.macros.fiber.min}g • Máximo: {results.macros.fiber.max}g
-              </p>
+
+              {/* Défice/Superávit */}
+              {calculatorData.goal !== 'maintenance' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {calculatorData.goal === 'cutting' ? 'Défice Calórico' : 'Superávit Calórico'} (%)
+                  </label>
+                  <input
+                    type="range"
+                    min={calculatorData.goal === 'cutting' ? '10' : '5'}
+                    max={calculatorData.goal === 'cutting' ? '30' : '20'}
+                    value={calculatorData.goal === 'cutting' ? calculatorData.deficitPercentage : calculatorData.surplusPercentage}
+                    onChange={(e) => updateData(
+                      calculatorData.goal === 'cutting' ? 'deficitPercentage' : 'surplusPercentage',
+                      parseInt(e.target.value)
+                    )}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-sm text-gray-600 mt-1">
+                    <span>{calculatorData.goal === 'cutting' ? 'Moderado' : 'Lento'}</span>
+                    <span className="font-medium">
+                      {calculatorData.goal === 'cutting' ? calculatorData.deficitPercentage : calculatorData.surplusPercentage}%
+                    </span>
+                    <span>{calculatorData.goal === 'cutting' ? 'Agressivo' : 'Rápido'}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Configuração de Macros */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Proteína (g/kg peso)
+                </label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="1.6"
+                    max="3.0"
+                    step="0.1"
+                    value={calculatorData.proteinGramsPerKg}
+                    onChange={(e) => updateData('proteinGramsPerKg', parseFloat(e.target.value))}
+                    className="flex-1"
+                  />
+                  <span className="font-mono bg-gray-100 px-3 py-1 rounded min-w-[60px] text-center">
+                    {calculatorData.proteinGramsPerKg}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Gordura (% calorias)
+                </label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="20"
+                    max="40"
+                    step="5"
+                    value={calculatorData.fatPercentage}
+                    onChange={(e) => updateData('fatPercentage', parseInt(e.target.value))}
+                    className="flex-1"
+                  />
+                  <span className="font-mono bg-gray-100 px-3 py-1 rounded min-w-[60px] text-center">
+                    {calculatorData.fatPercentage}%
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Meal Distribution */}
-          <div>
-            <button
-              onClick={() => setShowDetails(!showDetails)}
-              className="flex items-center justify-between w-full"
-            >
-              <h4 className="font-semibold text-gray-900">Distribuição por Refeições</h4>
-              <ChevronDown className={`h-5 w-5 text-gray-600 transform transition-transform ${
-                showDetails ? 'rotate-180' : ''
-              }`} />
-            </button>
+        {/* Coluna Direita - Resultados */}
+        <div className="space-y-6">
+          {/* Resultados TMB */}
+          {results && (
+            <>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6">
+                <div className="p-6 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Calculator className="h-5 w-5 text-indigo-600" />
+                    Cálculo de Macros
+                  </h3>
+                </div>
+                <div className="p-6 space-y-4">
+                  {/* TMB Comparison */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-700 mb-3">
+                      Taxa Metabólica Basal (TMB)
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Harris-Benedict:</span>
+                        <span className="font-mono font-medium">{results.bmr.harris} kcal</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Mifflin-St Jeor:</span>
+                        <span className="font-mono font-medium">{results.bmr.mifflin} kcal</span>
+                      </div>
+                      <div className="flex justify-between pt-2 border-t border-gray-200">
+                        <span className="font-medium text-gray-700">Média:</span>
+                        <span className="font-mono font-bold text-gray-900">{results.bmr.average} kcal</span>
+                      </div>
+                    </div>
+                  </div>
 
-            {showDetails && (
-              <div className="mt-4 space-y-3">
-                {results.mealDistribution.map((meal, index) => (
-                  <MealDistributionCard key={index} meal={meal} />
-                ))}
+                  {/* TDEE e Target */}
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-700">TDEE:</span>
+                        <span className="text-xl font-bold text-blue-700">{results.tdee} kcal</span>
+                      </div>
+                      {results.deficit !== 0 && (
+                        <div className="flex justify-between items-center pt-3 border-t border-blue-200">
+                          <span className="text-sm font-medium text-gray-700">
+                            {results.deficit > 0 ? 'Défice:' : 'Superávit:'}
+                          </span>
+                          <span className={`font-bold ${results.deficit > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {results.deficit > 0 ? '-' : '+'}{Math.abs(results.deficit)} kcal
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center pt-3 border-t border-blue-200">
+                        <span className="text-sm font-medium text-gray-700">Calorias Alvo:</span>
+                        <span className="text-2xl font-bold text-blue-900">{results.targetCalories} kcal</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Macros Distribution */}
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-gray-700">Distribuição de Macros</p>
+                    
+                    <div className="bg-green-50 rounded-lg p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-green-700">Proteína</span>
+                        <span className="text-lg font-bold text-green-900">{results.macros.protein}g</span>
+                      </div>
+                      <div className="text-xs text-green-600 space-y-1">
+                        <div className="flex justify-between">
+                          <span>{results.percentages.protein}% das calorias</span>
+                          <span>{results.calories.protein} kcal</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Por kg de peso:</span>
+                          <span>{calculatorData.proteinGramsPerKg}g/kg</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-orange-50 rounded-lg p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-orange-700">Carboidratos</span>
+                        <span className="text-lg font-bold text-orange-900">{results.macros.carbs}g</span>
+                      </div>
+                      <div className="text-xs text-orange-600">
+                        <div className="flex justify-between">
+                          <span>{results.percentages.carbs}% das calorias</span>
+                          <span>{results.calories.carbs} kcal</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-yellow-50 rounded-lg p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-yellow-700">Gordura</span>
+                        <span className="text-lg font-bold text-yellow-900">{results.macros.fat}g</span>
+                      </div>
+                      <div className="text-xs text-yellow-600">
+                        <div className="flex justify-between">
+                          <span>{results.percentages.fat}% das calorias</span>
+                          <span>{results.calories.fat} kcal</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-3">
+                      <div className="bg-purple-50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-purple-600">Fibra</p>
+                        <p className="text-lg font-bold text-purple-900">{results.macros.fiber}g</p>
+                      </div>
+                      <div className="bg-blue-50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-blue-600">Água</p>
+                        <p className="text-lg font-bold text-blue-900">{results.macros.water}ml</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-4">
+                    <button
+                      onClick={copyToClipboard}
+                      className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copiar
+                    </button>
+                    <button
+                      onClick={() => console.log('Save to client')}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      Guardar
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Info className="h-4 w-4" />
-              <span>Protocolo: {results.protocol} • Objetivo: {results.goal}</span>
-            </div>
-            <button
-              onClick={handleSave}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-            >
-              <Save className="h-4 w-4" />
-              <span>Guardar Cálculo</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Tips */}
-      <MacrosTips goal={formData.goal} />
-    </div>
-  );
-};
-
-// Macros Visual Chart Component
-const MacrosChart = ({ macros }) => {
-  const { protein, carbs, fat } = macros;
-  const total = protein.percentage + carbs.percentage + fat.percentage;
-
-  return (
-    <div className="relative h-40">
-      <div className="flex h-full rounded-lg overflow-hidden">
-        <div 
-          className="bg-green-500 flex items-center justify-center text-white font-semibold"
-          style={{ width: `${(protein.percentage / total) * 100}%` }}
-        >
-          {protein.percentage}%
-        </div>
-        <div 
-          className="bg-orange-500 flex items-center justify-center text-white font-semibold"
-          style={{ width: `${(carbs.percentage / total) * 100}%` }}
-        >
-          {carbs.percentage}%
-        </div>
-        <div 
-          className="bg-yellow-500 flex items-center justify-center text-white font-semibold"
-          style={{ width: `${(fat.percentage / total) * 100}%` }}
-        >
-          {fat.percentage}%
+              {/* Tips Box */}
+              <div className="bg-yellow-50 rounded-lg shadow-sm border border-yellow-200 p-4">
+                <div className="flex gap-3">
+                  <Info className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium mb-1">Dica Pro:</p>
+                    <p>Para {calculatorData.goal === 'cutting' ? 'maximizar a perda de gordura' : 
+                           calculatorData.goal === 'bulking' ? 'otimizar o ganho de massa' : 
+                           'manter a composição corporal'}, 
+                           considera fazer refeeds semanais e ajustar os carboidratos nos dias de treino.</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-// Macro Card Component
-const MacroCard = ({ name, value, color, icon }) => {
-  return (
-    <div className={`bg-white rounded-lg p-4 border-2 border-${color}-200`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-2xl">{icon}</span>
-        <span className={`text-xs font-semibold text-${color}-600`}>
-          {value.percentage}%
-        </span>
-      </div>
-      <h5 className="font-medium text-gray-900">{name}</h5>
-      <p className="text-2xl font-bold text-gray-900 mt-1">{value.grams}g</p>
-      <div className="mt-2 space-y-1">
-        <p className="text-xs text-gray-600">{value.calories} kcal</p>
-        <p className="text-xs text-gray-600">{value.perKg}g/kg peso</p>
-      </div>
-    </div>
-  );
-};
-
-// Meal Distribution Card Component
-const MealDistributionCard = ({ meal }) => {
-  return (
-    <div className="bg-white rounded-lg p-4 border border-gray-200">
-      <div className="flex items-center justify-between mb-2">
-        <h5 className="font-medium text-gray-900">{meal.name}</h5>
-        <span className="text-sm font-semibold text-blue-600">
-          {meal.calories} kcal ({meal.percentage}%)
-        </span>
-      </div>
-      <div className="grid grid-cols-3 gap-2 text-sm">
-        <div>
-          <span className="text-gray-600">Proteína:</span>
-          <span className="font-medium ml-1">{meal.protein}g</span>
-        </div>
-        <div>
-          <span className="text-gray-600">Carbs:</span>
-          <span className="font-medium ml-1">{meal.carbs}g</span>
-        </div>
-        <div>
-          <span className="text-gray-600">Gordura:</span>
-          <span className="font-medium ml-1">{meal.fat}g</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Macros Tips Component
-const MacrosTips = ({ goal }) => {
-  const tips = {
-    cutting: [
-      'Priorize proteína para preservar massa muscular',
-      'Distribua carboidratos em torno dos treinos',
-      'Mantenha gorduras saudáveis para hormônios'
-    ],
-    maintenance: [
-      'Mantenha consistência na distribuição diária',
-      'Ajuste conforme níveis de atividade',
-      'Monitorize peso semanalmente'
-    ],
-    bulking: [
-      'Aumente carboidratos gradualmente',
-      'Distribua proteína ao longo do dia',
-      'Não negligencie micronutrientes'
-    ]
-  };
-
-  const currentTips = tips[goal] || tips.maintenance;
-
-  return (
-    <div className="bg-blue-50 rounded-lg p-4">
-      <div className="flex items-start space-x-3">
-        <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <h4 className="font-medium text-blue-900 mb-2">Dicas para {goals[goal]?.name || 'Manutenção'}</h4>
-          <ul className="space-y-1">
-            {currentTips.map((tip, index) => (
-              <li key={index} className="text-sm text-blue-800">
-                • {tip}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Goals data for tips
-const goals = {
-  cutting: { name: 'Perda de Gordura' },
-  maintenance: { name: 'Manutenção' },
-  bulking: { name: 'Ganho de Massa' }
-};
-
-export default MacrosCalculator;  
+export default MacroCalculatorView;

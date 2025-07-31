@@ -1,192 +1,147 @@
-// src/modules/trainer/pages/Nutrition/components/charts/ComplianceChart.js
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
-const ComplianceChart = ({ athletes }) => {
-  // Preparar dados de compliance
-  const complianceData = athletes
-    .filter(a => a.nutritionPlan)
-    .map(a => ({
-      name: a.name.split(' ')[0],
-      compliance: a.nutritionPlan.compliance.overall,
-      protein: a.nutritionPlan.compliance.protein,
-      carbs: a.nutritionPlan.compliance.carbs,
-      fat: a.nutritionPlan.compliance.fat,
-      water: a.nutritionPlan.compliance.water,
-      trend: calculateTrend(a.nutritionPlan.recentMeals)
-    }))
-    .sort((a, b) => b.compliance - a.compliance);
-
-  // Calcular tendência baseada nas últimas refeições
-  function calculateTrend(recentMeals) {
-    if (!recentMeals || recentMeals.length < 2) return 'stable';
+const ComplianceChart = ({ 
+  data = [], 
+  period = 'week',
+  height = 200,
+  showTrend = true,
+  interactive = true 
+}) => {
+  // Calcular métricas
+  const avgCompliance = data.length > 0 
+    ? Math.round(data.reduce((acc, d) => acc + d.percentage, 0) / data.length)
+    : 0;
+  
+  const previousAvg = 85; // Mock para comparação
+  const trend = avgCompliance - previousAvg;
+  
+  // Obter valor máximo para escala
+  const maxValue = Math.max(...data.map(d => d.percentage), 100);
+  
+  // Cores baseadas no compliance
+  const getBarColor = (percentage) => {
+    if (percentage >= 90) return 'bg-emerald-500 hover:bg-emerald-600';
+    if (percentage >= 70) return 'bg-yellow-500 hover:bg-yellow-600';
+    return 'bg-red-500 hover:bg-red-600';
+  };
+  
+  // Componente de Trend
+  const TrendIndicator = () => {
+    if (!showTrend) return null;
     
-    const recent = recentMeals.slice(0, 3);
-    const older = recentMeals.slice(3);
+    const TrendIcon = trend > 0 ? TrendingUp : trend < 0 ? TrendingDown : Minus;
+    const trendColor = trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-600';
     
-    const recentAvg = recent.reduce((acc, m) => acc + m.compliance, 0) / recent.length;
-    const olderAvg = older.reduce((acc, m) => acc + m.compliance, 0) / older.length || recentAvg;
-    
-    const diff = recentAvg - olderAvg;
-    
-    if (diff > 5) return 'up';
-    if (diff < -5) return 'down';
-    return 'stable';
-  }
-
-  return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-gray-900">Aderência por Atleta</h3>
-        <div className="flex items-center space-x-4 text-xs text-gray-600">
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span>≥90%</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-            <span>80-89%</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <span>80%</span>
-          </div>
-        </div>
+    return (
+      <div className={`flex items-center gap-1 text-sm font-medium ${trendColor}`}>
+        <TrendIcon className="w-4 h-4" />
+        <span>{trend > 0 ? '+' : ''}{trend}%</span>
+        <span className="text-gray-500 font-normal">vs last {period}</span>
       </div>
-
-      {complianceData.length > 0 ? (
-        <div className="space-y-4">
-          {complianceData.map((data, index) => (
-            <ComplianceBar key={index} data={data} />
+    );
+  };
+  
+  return (
+    <div className="w-full">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Compliance Overview</h3>
+          <p className="text-sm text-gray-500">Average: {avgCompliance}%</p>
+        </div>
+        <TrendIndicator />
+      </div>
+      
+      {/* Chart Container */}
+      <div 
+        className="relative" 
+        style={{ height: `${height}px` }}
+      >
+        {/* Grid Lines */}
+        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+          {[100, 75, 50, 25, 0].map((value) => (
+            <div key={value} className="flex items-center">
+              <span className="text-xs text-gray-400 w-8 text-right mr-2">{value}</span>
+              <div className="flex-1 border-t border-gray-100" />
+            </div>
           ))}
         </div>
-      ) : (
-        <EmptyState />
-      )}
-
-      {/* Summary Stats */}
-      {complianceData.length > 0 && (
-        <ComplianceSummary data={complianceData} />
-      )}
-    </div>
-  );
-};
-
-// Individual Compliance Bar Component
-const ComplianceBar = ({ data }) => {
-  const getComplianceColor = (value) => {
-    if (value >= 90) return 'bg-green-500';
-    if (value >= 80) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
-
-  const getTrendIcon = () => {
-    switch (data.trend) {
-      case 'up':
-        return <TrendingUp className="h-4 w-4 text-green-600" />;
-      case 'down':
-        return <TrendingDown className="h-4 w-4 text-red-600" />;
-      default:
-        return <Minus className="h-4 w-4 text-gray-400" />;
-    }
-  };
-
-  const [isExpanded, setIsExpanded] = React.useState(false);
-
-  return (
-    <div className="space-y-2">
-      {/* Main Bar */}
-      <div 
-        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center space-x-3 flex-1">
-          <span className="text-sm font-medium text-gray-700 w-20">{data.name}</span>
-          <div className="flex-1">
-            <div className="bg-gray-200 rounded-full h-6 relative overflow-hidden">
+        
+        {/* Bars */}
+        <div className="relative h-full flex items-end justify-between gap-2 px-10">
+          {data.map((day, index) => {
+            const barHeight = (day.percentage / maxValue) * (height - 20);
+            const isToday = index === data.length - 1;
+            
+            return (
               <div 
-                className={`h-6 rounded-full transition-all duration-500 ${getComplianceColor(data.compliance)}`}
-                style={{ width: `${data.compliance}%` }}
-              />
-              <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-white mix-blend-difference">
-                {data.compliance}%
-              </span>
-            </div>
-          </div>
+                key={index} 
+                className="flex-1 flex flex-col items-center group"
+              >
+                {/* Percentage Label */}
+                <span 
+                  className={`text-xs font-medium mb-2 transition-opacity ${
+                    interactive ? 'opacity-0 group-hover:opacity-100' : ''
+                  } ${isToday ? 'text-emerald-600 !opacity-100' : 'text-gray-700'}`}
+                >
+                  {day.percentage}%
+                </span>
+                
+                {/* Bar */}
+                <div className="relative w-full flex flex-col items-center">
+                  <div 
+                    className={`
+                      w-full rounded-t-md transition-all duration-300 
+                      ${getBarColor(day.percentage)}
+                      ${isToday ? 'ring-2 ring-emerald-500 ring-offset-2' : ''}
+                    `}
+                    style={{ 
+                      height: `${Math.max(barHeight, 4)}px`,
+                      minHeight: '4px'
+                    }}
+                  >
+                    {/* Tooltip on hover */}
+                    {interactive && (
+                      <div className="absolute -top-16 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap">
+                          <div className="font-semibold">{day.label || `Day ${index + 1}`}</div>
+                          <div>{day.compliantMeals || 0} / {day.totalMeals || 0} meals</div>
+                        </div>
+                        <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-gray-900 rotate-45" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Day Label */}
+                <span className={`text-xs mt-2 ${isToday ? 'font-semibold' : ''} text-gray-500`}>
+                  {day.day}
+                  {isToday && <span className="block text-xs text-emerald-600">Today</span>}
+                </span>
+              </div>
+            );
+          })}
         </div>
-        <div className="ml-3">{getTrendIcon()}</div>
       </div>
-
-      {/* Expanded Details */}
-      {isExpanded && (
-        <div className="pl-24 space-y-1 animate-fadeIn">
-          <MacroBar label="Proteína" value={data.protein} color="bg-green-400" />
-          <MacroBar label="Carbs" value={data.carbs} color="bg-orange-400" />
-          <MacroBar label="Gordura" value={data.fat} color="bg-yellow-400" />
-          <MacroBar label="Água" value={data.water} color="bg-blue-400" />
+      
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-4 mt-4 text-xs">
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 bg-emerald-500 rounded" />
+          <span className="text-gray-600">Excellent (≥90%)</span>
         </div>
-      )}
-    </div>
-  );
-};
-
-// Macro Bar Component
-const MacroBar = ({ label, value, color }) => (
-  <div className="flex items-center space-x-2">
-    <span className="text-xs text-gray-600 w-16">{label}</span>
-    <div className="flex-1 bg-gray-100 rounded-full h-3">
-      <div 
-        className={`h-3 rounded-full ${color}`}
-        style={{ width: `${value}%` }}
-      />
-    </div>
-    <span className="text-xs font-medium text-gray-700 w-10 text-right">{value}%</span>
-  </div>
-);
-
-// Compliance Summary Component
-const ComplianceSummary = ({ data }) => {
-  const avgCompliance = Math.round(
-    data.reduce((acc, d) => acc + d.compliance, 0) / data.length
-  );
-
-  const highPerformers = data.filter(d => d.compliance >= 90).length;
-  const needsAttention = data.filter(d => d.compliance < 80).length;
-  const improving = data.filter(d => d.trend === 'up').length;
-
-  return (
-    <div className="mt-6 pt-6 border-t grid grid-cols-4 gap-4 text-center">
-      <div>
-        <p className="text-2xl font-bold text-gray-900">{avgCompliance}%</p>
-        <p className="text-xs text-gray-600">Média Geral</p>
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-green-600">{highPerformers}</p>
-        <p className="text-xs text-gray-600">Alta Aderência</p>
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-red-600">{needsAttention}</p>
-        <p className="text-xs text-gray-600">Precisam Atenção</p>
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-blue-600">{improving}</p>
-        <p className="text-xs text-gray-600">A Melhorar</p>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 bg-yellow-500 rounded" />
+          <span className="text-gray-600">Good (70-89%)</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 bg-red-500 rounded" />
+          <span className="text-gray-600">Needs Work (70%)</span>
+        </div>
       </div>
     </div>
   );
 };
-
-// Empty State Component
-const EmptyState = () => (
-  <div className="text-center py-8">
-    <div className="text-gray-400 mb-2">
-      <BarChart3 className="h-12 w-12 mx-auto" />
-    </div>
-    <p className="text-gray-500">Sem dados de aderência</p>
-    <p className="text-sm text-gray-400 mt-1">
-      Os dados aparecerão quando os atletas registarem refeições
-    </p>
-  </div>
-);
 
 export default ComplianceChart;

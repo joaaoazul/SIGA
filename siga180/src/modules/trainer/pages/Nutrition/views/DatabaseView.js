@@ -4,6 +4,7 @@ import {
   Search,
   Plus,
   Filter,
+  X,
   Upload,
   Download,
   Scan,
@@ -29,7 +30,7 @@ import {
   FileText,
   Camera
 } from 'lucide-react';
-import FoodCard from './cards/FoodCard';
+import FoodCard from '../components/cards/FoodCard';
 
 const DatabaseView = () => {
   const [searchTerm, setSearchTerm] = useState('');

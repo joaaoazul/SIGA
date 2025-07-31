@@ -25,12 +25,12 @@ import {
   Printer,
   Check
 } from 'lucide-react';
-import CaloriesCalculator from './calculators/CaloriesCalculator';
-import MacrosCalculator from './calculators/MacrosCalculator';
-import BMICalculator from './calculators/BMICalculator';
-import BodyFatCalculator from './calculators/BodyFatCalculator';
-import WaterCalculator from './calculators/WaterCalculator';
-import SupplementsGuide from './calculators/SupplementsGuide';
+import CaloriesCalculator from '../components/calculators/CaloriesCalculator';
+import MacrosCalculator from '../components/calculators/MacrosCalculator';
+import BMICalculator from '../components/calculators/BMICalculator';
+import BodyFatCalculator from '../components/calculators/BodyFatCalculator';
+import WaterCalculator from '../components/calculators/WaterCalculator';
+import SupplementsGuide from '../components/calculators/SupplementsGuide';
 
 const ToolsView = () => {
   const [activeCalculator, setActiveCalculator] = useState('calories');

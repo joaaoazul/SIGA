@@ -1,5 +1,6 @@
 // src/modules/trainer/pages/Nutrition/components/AthletesView.js
 import React, { useState } from 'react';
+import { mockAthletes } from '../data/mockData';
 import {
   Search,
   Plus,
@@ -10,7 +11,7 @@ import {
   TrendingUp,
   TrendingDown
 } from 'lucide-react';
-import AthleteCard from './cards/AthleteCard';
+import AthleteCard from '../components/cards/AthleteCard';
 
 const AthletesView = ({ 
   athletes, 
@@ -21,6 +22,13 @@ const AthletesView = ({
   onSelectAthlete, 
   onCreatePlan 
 }) => {
+    athletes = athletes || mockAthletes;
+  searchTerm = searchTerm || '';
+  setSearchTerm = setSearchTerm || (() => {});
+  filterType = filterType || 'all';
+  setFilterType = setFilterType || (() => {});
+  onSelectAthlete = onSelectAthlete || (() => {});
+  onCreatePlan = onCreatePlan || (() => {});
   const [viewMode, setViewMode] = useState('grid');
   const [sortBy, setSortBy] = useState('name');
 
