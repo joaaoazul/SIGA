@@ -1,5 +1,7 @@
+// src/routes/AthleteRoutes.js
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import Layout from '../modules/shared/components/layout/Layout';
 
 // Páginas do Atleta
 import Dashboard from '../modules/athlete/pages/Dashboard';
@@ -13,13 +15,15 @@ import Messages from '../modules/shared/pages/Messages';
 
 export const AthleteRoutes = () => {
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/workouts" element={<MyWorkouts />} />
-      <Route path="/progress" element={<Progress />} />
-      <Route path="/nutrition" element={<Nutrition />} />
-      <Route path="/checkin" element={<CheckIn />} />
-      <Route path="/messages" element={<Messages />} />
-    </Routes>
+    <Layout title="180 Performance">
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/workouts" element={<MyWorkouts />} />
+        <Route path="/progress" element={<Progress />} />
+        <Route path="/nutrition" element={<Nutrition />} />
+        <Route path="/checkin" element={<CheckIn />} />
+        <Route path="/messages" element={<Messages />} />
+      </Routes>
+    </Layout>
   );
 };

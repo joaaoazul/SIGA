@@ -62,7 +62,7 @@ const AthleteDetail = () => {
 
   if (!athlete) {
     return (
-      <Layout title="Athlete Details">
+      
         <div className="p-6">
           <div className="bg-white rounded-lg shadow-sm p-8 text-center">
             <p className="text-gray-500">Athlete not found</p>
@@ -71,7 +71,7 @@ const AthleteDetail = () => {
             </Link>
           </div>
         </div>
-      </Layout>
+      
     );
   }
 
@@ -85,7 +85,7 @@ const AthleteDetail = () => {
   ];
 
   return (
-    <Layout title={athlete.name}>
+    
       <div className="p-6">
         {/* Header */}
         <div className="mb-6">
@@ -321,7 +321,7 @@ const AthleteDetail = () => {
           )}
         </div>
       </div>
-    </Layout>
+    
   );
 };
 

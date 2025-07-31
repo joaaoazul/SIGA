@@ -174,7 +174,7 @@ const MyWorkouts = () => {
   };
 
   return (
-    <Layout title="Os Meus Treinos">
+    
       <div className="p-6">
         {/* Header com Plano Atual */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white mb-6">
@@ -404,7 +404,7 @@ const MyWorkouts = () => {
           </div>
         )}
       </div>
-    </Layout>
+    
   );
 };
 

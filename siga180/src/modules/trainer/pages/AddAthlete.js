@@ -15,7 +15,7 @@ const AddAthlete = () => {
   };
 
   return (
-    <Layout title="Add New Athlete">
+    
       <div className="p-6">
         <div className="mb-6">
           <Link
@@ -32,7 +32,7 @@ const AddAthlete = () => {
 
         <AthleteFormWithMagicLink onSubmit={handleSubmit} />
       </div>
-    </Layout>
+    
   );
 };
 

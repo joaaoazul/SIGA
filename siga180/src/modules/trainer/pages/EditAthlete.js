@@ -24,7 +24,7 @@ const EditAthlete = () => {
 
   if (!athlete) {
     return (
-      <Layout title="Edit Athlete">
+      
         <div className="p-6">
           <div className="bg-white rounded-lg shadow-sm p-8 text-center">
             <p className="text-gray-500">Athlete not found</p>
@@ -33,12 +33,12 @@ const EditAthlete = () => {
             </Link>
           </div>
         </div>
-      </Layout>
+      
     );
   }
 
   return (
-    <Layout title={`Edit ${athlete.name}`}>
+    
       <div className="p-6">
         <div className="mb-6">
           <Link
@@ -59,7 +59,7 @@ const EditAthlete = () => {
           isEditing={true}
         />
       </div>
-    </Layout>
+    
   );
 };
 

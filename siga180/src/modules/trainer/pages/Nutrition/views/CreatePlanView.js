@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, User, Calculator, Apple } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Save, User, Calculator, Apple, AlertCircle, Check } from 'lucide-react';
 import MacroCalculator from '../components/MacroCalculator';
 import MealPlanBuilder from '../components/MealPlanBuilder';
 

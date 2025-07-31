@@ -161,7 +161,7 @@ const Progress = () => {
   };
 
   return (
-    <Layout title="O Meu Progresso">
+    
       <div className="p-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
@@ -485,7 +485,7 @@ const Progress = () => {
           </div>
         )}
       </div>
-    </Layout>
+    
   );
 };
 

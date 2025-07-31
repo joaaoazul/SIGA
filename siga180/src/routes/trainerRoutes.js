@@ -1,6 +1,7 @@
 // src/routes/TrainerRoutes.js
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import Layout from '../modules/shared/components/layout/Layout';
 
 // Páginas do Trainer
 import Dashboard from '../modules/trainer/pages/Dashboard';
@@ -20,17 +21,19 @@ import Messages from '../modules/shared/pages/Messages';
 
 export const TrainerRoutes = () => {
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/athletes" element={<Athletes />} />
-      <Route path="/athletes/new" element={<AddAthlete />} />
-      <Route path="/athletes/new/full" element={<AddAthleteFull />} />
-      <Route path="/athletes/:id" element={<AthleteDetail />} />
-      <Route path="/athletes/:id/edit" element={<EditAthlete />} />
-      <Route path="/workouts" element={<WorkoutPlans />} />
-      <Route path="/analytics" element={<Analytics />} />
-      <Route path="/nutrition/*" element={<NutritionModule />} />
-      <Route path="/messages" element={<Messages />} />
-    </Routes>
+    <Layout title="180 Performance">
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/athletes" element={<Athletes />} />
+        <Route path="/athletes/new" element={<AddAthlete />} />
+        <Route path="/athletes/new/full" element={<AddAthleteFull />} />
+        <Route path="/athletes/:id" element={<AthleteDetail />} />
+        <Route path="/athletes/:id/edit" element={<EditAthlete />} />
+        <Route path="/workouts" element={<WorkoutPlans />} />
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/nutrition/*" element={<NutritionModule />} />
+        <Route path="/messages" element={<Messages />} />
+      </Routes>
+    </Layout>
   );
 };

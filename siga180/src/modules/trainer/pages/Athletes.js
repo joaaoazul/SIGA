@@ -45,7 +45,7 @@ const Athletes = () => {
   };
 
   return (
-    <Layout title="Athletes">
+    
       <div className="p-6">
         {/* Header */}
         <div className="mb-6">
@@ -116,7 +116,7 @@ const Athletes = () => {
           setFilterStatus={setFilterStatus}
         />
       </div>
-    </Layout>
+    
   );
 };
 

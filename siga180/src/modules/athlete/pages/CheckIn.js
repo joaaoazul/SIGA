@@ -253,7 +253,7 @@ const CheckIn = () => {
 
   // RENDER PRINCIPAL
   return (
-    <Layout title="Check-in Diário">
+    
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
         {/* Header com status de auto-save */}
         <div className="flex justify-between items-start mb-8">
@@ -532,7 +532,7 @@ const CheckIn = () => {
           <p>Usa as setas ← → para navegar • Ctrl+S para guardar</p>
         </div>
       </div>
-    </Layout>
+    
   );
 };
 

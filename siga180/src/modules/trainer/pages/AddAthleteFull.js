@@ -27,7 +27,7 @@ const AddAthleteFull = () => {
   };
 
   return (
-    <Layout title="Add Athlete - Complete Profile">
+    
       <div className="p-6">
         <div className="mb-6">
           <Link
@@ -49,7 +49,7 @@ const AddAthleteFull = () => {
 
         <AthleteFormEdit onSubmit={handleSubmit} />
       </div>
-    </Layout>
+    
   );
 };
 

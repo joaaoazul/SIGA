@@ -166,7 +166,7 @@ const AthleteDashboard = () => {
   };
 
   return (
-    <Layout title="O Meu Painel">
+    
       <div className="p-6">
         {/* Header com Saudação */}
         <div className="mb-8">
@@ -351,7 +351,7 @@ const AthleteDashboard = () => {
           </div>
         </div>
       </div>
-    </Layout>
+    
   );
 };
 
