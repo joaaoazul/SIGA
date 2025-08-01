@@ -1,357 +1,400 @@
-// src/modules/athlete/pages/Dashboard.js
-import React, { useState } from 'react';
-import Layout from '../../shared/components/layout/Layout';
-import { 
-  Calendar, 
-  Activity, 
-  Apple, 
-  TrendingUp,
-  Clock,
+import React, { useState, useEffect } from 'react';
+import {
+  Calendar,
   Target,
-  Award,
+  TrendingUp,
+  Apple,
+  Camera,
+  Clock,
+  CheckCircle,
   AlertCircle,
   ChevronRight,
-  Dumbbell,
-  Heart,
-  Zap
+  Plus,
+  Utensils,
+  Droplets,
+  Activity,
+  Award,
+  BarChart3,
+  MessageSquare
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
-// Componente para Card de Estatística
-const StatsCard = ({ icon: Icon, title, value, subtitle, color = 'blue', trend }) => {
-  const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    orange: 'bg-orange-100 text-orange-600',
-    purple: 'bg-purple-100 text-purple-600',
-    red: 'bg-red-100 text-red-600',
-    yellow: 'bg-yellow-100 text-yellow-600'
+// Hooks
+import { useAuth } from '../../shared/hooks/useAuth';
+import { useMyNutritionPlan } from '../hooks/useMyPlan';
+import { useMyMealsToday } from '../hooks/useMyPlan';
+import { useMyProgress } from '../hooks/useMyProgress';
+import { useLogMeal } from '../hooks/useMealLogging';
+
+// Components
+import MacroProgressBar from '../../shared/components/MacroProgressBar';
+import QuickLogModal from '../components/QuickLogModal';
+import MealPhotoUpload from '../components/MealPhotoUpload';
+
+const AthleteDashboard = () => {
+  const { user } = useAuth();
+  const { plan, loading: planLoading } = useMyNutritionPlan();
+  const { meals, totals, remaining } = useMyMealsToday();
+  const { stats } = useMyProgress();
+  const { logMeal, logging } = useLogMeal();
+
+  const [showQuickLog, setShowQuickLog] = useState(false);
+  const [selectedMealType, setSelectedMealType] = useState(null);
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+
+  // Calculate compliance
+  const calculateDayCompliance = () => {
+    if (!plan) return 0;
+    const calorieCompliance = Math.max(0, 100 - Math.abs((totals.calories - plan.calories) / plan.calories * 100));
+    return Math.round(calorieCompliance);
   };
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-          <Icon className="w-6 h-6" />
-        </div>
-        {trend && (
-          <span className={`text-sm font-medium ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {trend > 0 ? '+' : ''}{trend}%
-          </span>
-        )}
-      </div>
-      <h3 className="mt-4 text-lg font-semibold text-gray-900">{value}</h3>
-      <p className="text-sm text-gray-600">{title}</p>
-      {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
-    </div>
-  );
-};
+  const mealTypes = [
+    { id: 'breakfast', name: 'Pequeno-almoço', icon: '☕', time: '08:00' },
+    { id: 'lunch', name: 'Almoço', icon: '🍽️', time: '13:00' },
+    { id: 'snack', name: 'Lanche', icon: '🥜', time: '16:00' },
+    { id: 'dinner', name: 'Jantar', icon: '🍴', time: '20:00' }
+  ];
 
-// Componente para Sessão de Treino
-const WorkoutSessionCard = ({ session, onStart }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'upcoming': return 'bg-blue-100 text-blue-800';
-      case 'missed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const handleQuickLog = (mealType) => {
+    setSelectedMealType(mealType);
+    setShowQuickLog(true);
   };
 
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-shadow">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-blue-50 rounded-lg">
-            <Dumbbell className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <h4 className="font-semibold text-gray-900">{session.name}</h4>
-            <p className="text-sm text-gray-600">{session.time}</p>
-          </div>
+  const handlePhotoLog = (mealType) => {
+    setSelectedMealType(mealType);
+    setShowPhotoUpload(true);
+  };
+
+  if (planLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">A carregar o teu plano...</p>
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
-          {session.status}
-        </span>
       </div>
-      
-      <div className="space-y-2">
-        <div className="flex items-center text-sm text-gray-600">
-          <Clock className="w-4 h-4 mr-2" />
-          <span>{session.duration}</span>
+    );
+  }
+
+  if (!plan) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-yellow-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Ainda não tens um plano nutricional
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Contacta o teu treinador para criar um plano personalizado para ti.
+            </p>
+            <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <MessageSquare className="h-5 w-5 inline mr-2" />
+              Contactar Treinador
+            </button>
+          </div>
         </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <Target className="w-4 h-4 mr-2" />
-          <span>{session.focus}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Olá, {user?.name?.split(' ')[0]}! 💪
+              </h1>
+              <p className="text-gray-600 mt-1">
+                {remaining.calories > 0 
+                  ? `Faltam ${remaining.calories} kcal para hoje`
+                  : remaining.calories < 0
+                  ? `Excedeste ${Math.abs(remaining.calories)} kcal hoje`
+                  : 'Objetivo calórico atingido! 🎉'
+                }
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Award className="h-4 w-4" />
+                <span>Sequência</span>
+              </div>
+              <p className="text-3xl font-bold text-blue-600">{stats?.streak || 0} dias</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {session.status === 'upcoming' && (
-        <button 
-          onClick={() => onStart(session)}
-          className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
-        >
-          <span>Começar Treino</span>
-          <ChevronRight className="w-4 h-4" />
-        </button>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Daily Progress */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">Progresso Diário</h2>
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              calculateDayCompliance() >= 90 ? 'bg-green-100 text-green-700' :
+              calculateDayCompliance() >= 70 ? 'bg-yellow-100 text-yellow-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              {calculateDayCompliance()}% Aderência
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            <MacroProgressBar
+              label="Calorias"
+              current={totals.calories}
+              target={plan.calories}
+              unit="kcal"
+              color="blue"
+            />
+            <MacroProgressBar
+              label="Proteína"
+              current={totals.protein}
+              target={plan.protein}
+              unit="g"
+              color="green"
+            />
+            <MacroProgressBar
+              label="Carboidratos"
+              current={totals.carbs}
+              target={plan.carbs}
+              unit="g"
+              color="orange"
+            />
+            <MacroProgressBar
+              label="Gordura"
+              current={totals.fat}
+              target={plan.fat}
+              unit="g"
+              color="yellow"
+            />
+          </div>
+
+          {/* Water & Fiber */}
+          <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t">
+            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Droplets className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-medium">Água</span>
+              </div>
+              <span className="text-sm font-bold text-blue-700">
+                {totals.water || 0} / {plan.water || 2500}ml
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-green-600" />
+                <span className="text-sm font-medium">Fibra</span>
+              </div>
+              <span className="text-sm font-bold text-green-700">
+                {totals.fiber || 0} / {plan.fiber || 25}g
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Log Meals */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Registar Refeições</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {mealTypes.map(mealType => {
+              const meal = meals.find(m => m.meal_type === mealType.id);
+              const isLogged = !!meal;
+              
+              return (
+                <div key={mealType.id} className="relative">
+                  <button
+                    onClick={() => !isLogged && handlePhotoLog(mealType.id)}
+                    disabled={isLogged || logging}
+                    className={`w-full p-4 rounded-lg border-2 transition-all ${
+                      isLogged
+                        ? 'border-green-500 bg-green-50 cursor-not-allowed'
+                        : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50'
+                    }`}
+                  >
+                    <div className="text-2xl mb-2">{mealType.icon}</div>
+                    <p className="text-sm font-medium text-gray-900">{mealType.name}</p>
+                    <p className="text-xs text-gray-500">{mealType.time}</p>
+                    {isLogged && (
+                      <div className="absolute top-2 right-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      </div>
+                    )}
+                  </button>
+                  
+                  {!isLogged && (
+                    <button
+                      onClick={() => handleQuickLog(mealType.id)}
+                      className="absolute -bottom-2 -right-2 p-2 bg-white border border-gray-200 rounded-full shadow-sm hover:shadow-md transition-shadow"
+                      title="Registo rápido"
+                    >
+                      <Plus className="h-4 w-4 text-gray-600" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Today's Meals */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Refeições de Hoje</h2>
+            <button className="text-sm text-blue-600 hover:text-blue-700">
+              Ver histórico
+            </button>
+          </div>
+
+          {meals.length === 0 ? (
+            <div className="text-center py-12">
+              <Utensils className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">Ainda não registaste nenhuma refeição hoje</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {meals.map(meal => (
+                <MealItem key={meal.id} meal={meal} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <Target className="h-5 w-5 text-blue-600" />
+              <span className="text-sm text-gray-500">Objetivo</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{plan.name}</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Termina em {Math.ceil((new Date(plan.end_date) - new Date()) / (1000 * 60 * 60 * 24))} dias
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+              <span className="text-sm text-gray-500">Progresso</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">
+              {stats?.weightChange ? `${stats.weightChange > 0 ? '+' : ''}${stats.weightChange}kg` : '---'}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">Desde o início</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <Calendar className="h-5 w-5 text-purple-600" />
+              <span className="text-sm text-gray-500">Check-in</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">
+              {stats?.nextCheckIn ? new Date(stats.nextCheckIn).toLocaleDateString('pt-PT') : '---'}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">Próximo check-in</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Log Modal */}
+      {showQuickLog && (
+        <QuickLogModal
+          mealType={selectedMealType}
+          onClose={() => setShowQuickLog(false)}
+          onSave={(mealData) => {
+            logMeal(mealData);
+            setShowQuickLog(false);
+          }}
+        />
+      )}
+
+      {/* Photo Upload Modal */}
+      {showPhotoUpload && (
+        <MealPhotoUpload
+          mealType={selectedMealType}
+          onClose={() => setShowPhotoUpload(false)}
+          onUpload={async (photo, description) => {
+            await logMeal({
+              meal_type: selectedMealType,
+              description
+            }, photo);
+            setShowPhotoUpload(false);
+          }}
+        />
       )}
     </div>
   );
 };
 
-// Componente de Progresso Rápido
-const QuickProgress = ({ title, current, goal, unit, icon: Icon }) => {
-  const percentage = Math.min((current / goal) * 100, 100);
-  
-  return (
-    <div className="bg-gray-50 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center space-x-2">
-          <Icon className="w-4 h-4 text-gray-600" />
-          <span className="text-sm font-medium text-gray-700">{title}</span>
-        </div>
-        <span className="text-sm text-gray-600">
-          {current}/{goal} {unit}
-        </span>
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
-        <div 
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-    </div>
-  );
-};
+// Meal Item Component
+const MealItem = ({ meal }) => {
+  const getMealIcon = (type) => {
+    const icons = {
+      breakfast: '☕',
+      lunch: '🍽️',
+      snack: '🥜',
+      dinner: '🍴'
+    };
+    return icons[type] || '🍴';
+  };
 
-const AthleteDashboard = () => {
-  const [todayWorkouts] = useState([
-    {
-      id: 1,
-      name: 'Treino de Pernas',
-      time: '18:00 - 19:00',
-      duration: '60 min',
-      focus: 'Força e Resistência',
-      status: 'upcoming'
-    },
-    {
-      id: 2,
-      name: 'Cardio HIIT',
-      time: '07:00 - 07:30',
-      duration: '30 min',
-      focus: 'Condicionamento',
-      status: 'completed'
+  const getMealName = (type) => {
+    const names = {
+      breakfast: 'Pequeno-almoço',
+      lunch: 'Almoço',
+      snack: 'Lanche',
+      dinner: 'Jantar'
+    };
+    return names[type] || type;
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'approved':
+        return (
+          <span className="flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2 py-1 rounded-full">
+            <CheckCircle className="h-3 w-3" />
+            Aprovado
+          </span>
+        );
+      case 'needs_review':
+        return (
+          <span className="flex items-center gap-1 text-xs text-orange-700 bg-orange-100 px-2 py-1 rounded-full">
+            <AlertCircle className="h-3 w-3" />
+            Precisa revisão
+          </span>
+        );
+      default:
+        return (
+          <span className="flex items-center gap-1 text-xs text-gray-700 bg-gray-100 px-2 py-1 rounded-full">
+            <Clock className="h-3 w-3" />
+            Pendente
+          </span>
+        );
     }
-  ]);
-
-  const [weeklyProgress] = useState([
-    { day: 'S', completed: true, workout: 'Peito' },
-    { day: 'T', completed: true, workout: 'Costas' },
-    { day: 'Q', completed: false, workout: 'Pernas' },
-    { day: 'Q', completed: true, workout: 'Ombros' },
-    { day: 'S', completed: false, workout: 'Cardio' },
-    { day: 'S', completed: false, workout: 'Full Body' },
-    { day: 'D', completed: false, workout: 'Rest' }
-  ]);
-
-  const [recentAchievements] = useState([
-    { id: 1, title: '7 Dias Consecutivos', icon: Award, date: 'Há 2 dias' },
-    { id: 2, title: 'Novo PR no Supino', icon: TrendingUp, date: 'Há 5 dias' },
-    { id: 3, title: 'Meta de Calorias', icon: Apple, date: 'Há 1 semana' }
-  ]);
-
-  const handleStartWorkout = (session) => {
-    console.log('Starting workout:', session);
-    // Navegar para página de treino
   };
 
   return (
-    
-      <div className="p-6">
-        {/* Header com Saudação */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Olá, Maria! 👋</h1>
-          <p className="text-gray-600 mt-1">Pronta para mais um dia de conquistas?</p>
-        </div>
-
-        {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            icon={Calendar}
-            title="Próximo Treino"
-            value="Hoje, 18:00"
-            subtitle="Treino de Pernas"
-            color="blue"
-          />
-          <StatsCard
-            icon={Activity}
-            title="Esta Semana"
-            value="4/6"
-            subtitle="Treinos completos"
-            color="green"
-            trend={15}
-          />
-          <StatsCard
-            icon={Heart}
-            title="Frequência Cardíaca"
-            value="72 bpm"
-            subtitle="Média em repouso"
-            color="red"
-          />
-          <StatsCard
-            icon={Zap}
-            title="Calorias Hoje"
-            value="1,850"
-            subtitle="Meta: 2,200 kcal"
-            color="orange"
-            trend={-8}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Coluna Principal */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Sessões de Hoje */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Treinos de Hoje</h2>
-                <Link to="/workouts" className="text-sm text-blue-600 hover:text-blue-700">
-                  Ver todos →
-                </Link>
-              </div>
-              <div className="space-y-4">
-                {todayWorkouts.map(session => (
-                  <WorkoutSessionCard
-                    key={session.id}
-                    session={session}
-                    onStart={handleStartWorkout}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Progresso Semanal */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Progresso Semanal</h2>
-              <div className="flex justify-between mb-6">
-                {weeklyProgress.map((day, index) => (
-                  <div key={index} className="text-center">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
-                      day.completed 
-                        ? 'bg-green-100 text-green-600' 
-                        : 'bg-gray-100 text-gray-400'
-                    }`}>
-                      {day.completed ? '✓' : day.day}
-                    </div>
-                    <p className="text-xs text-gray-600">{day.day}</p>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="space-y-3">
-                <QuickProgress
-                  title="Treinos Completos"
-                  current={4}
-                  goal={6}
-                  unit="treinos"
-                  icon={Dumbbell}
-                />
-                <QuickProgress
-                  title="Calorias Queimadas"
-                  current={2150}
-                  goal={3000}
-                  unit="kcal"
-                  icon={Activity}
-                />
-                <QuickProgress
-                  title="Tempo de Exercício"
-                  current={240}
-                  goal={300}
-                  unit="min"
-                  icon={Clock}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Coluna Lateral */}
-          <div className="space-y-6">
-            {/* Check-in Rápido */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Check-in Diário</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <AlertCircle className="w-5 h-5 text-yellow-600" />
-                    <span className="text-sm font-medium text-gray-700">Ainda não fez check-in</span>
-                  </div>
-                </div>
-                <Link 
-                  to="/checkin"
-                  className="block w-full text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Fazer Check-in
-                </Link>
-              </div>
-            </div>
-
-            {/* Conquistas Recentes */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Conquistas Recentes</h3>
-              <div className="space-y-3">
-                {recentAchievements.map(achievement => {
-                  const Icon = achievement.icon;
-                  return (
-                    <div key={achievement.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="p-2 bg-yellow-100 rounded-lg">
-                        <Icon className="w-5 h-5 text-yellow-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{achievement.title}</p>
-                        <p className="text-xs text-gray-500">{achievement.date}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Nutrição Rápida */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Nutrição Hoje</h3>
-              <div className="space-y-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-900">1,850</div>
-                  <p className="text-sm text-gray-600">de 2,200 kcal</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Proteínas</span>
-                    <span className="font-medium">78g / 120g</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Carboidratos</span>
-                    <span className="font-medium">215g / 250g</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Gorduras</span>
-                    <span className="font-medium">62g / 70g</span>
-                  </div>
-                </div>
-                
-                <Link 
-                  to="/nutrition"
-                  className="block w-full text-center text-blue-600 text-sm hover:text-blue-700"
-                >
-                  Ver detalhes →
-                </Link>
-              </div>
-            </div>
-          </div>
+    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+      <div className="flex items-center gap-4">
+        <div className="text-2xl">{getMealIcon(meal.meal_type)}</div>
+        <div>
+          <p className="font-medium text-gray-900">{getMealName(meal.meal_type)}</p>
+          <p className="text-sm text-gray-600">
+            {meal.time || '--:--'} • {meal.calories || 0} kcal
+            {meal.photo_url && ' • 📷'}
+          </p>
         </div>
       </div>
-    
+      <div className="flex items-center gap-3">
+        {getStatusBadge(meal.status)}
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+      </div>
+    </div>
   );
 };
 

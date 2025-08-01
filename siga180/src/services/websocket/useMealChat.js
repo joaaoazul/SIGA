@@ -1,148 +1,141 @@
-// src/services/websocket/useMealChat.js
+// src/modules/shared/hooks/useMealChat.js
 import { useState, useEffect, useCallback, useRef } from 'react';
-import wsService from './WebSocketService';
-import { nutritionService } from '../api';
+import { supabase } from '../../../services/supabase/supabaseClient';
+import realtimeService from '../../../services/supabase/realtime.service';
+import { useAuth } from './useAuth';
 
 export const useMealChat = (athleteId, mealId) => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [typingTimeout, setTypingTimeout] = useState(null);
-  const messagesRef = useRef([]);
+  const [loading, setLoading] = useState(true);
+  const channelRef = useRef(null);
 
   useEffect(() => {
+    if (!athleteId || !mealId) return;
+
     // Load initial messages
     loadMessages();
 
-    // Connect to WebSocket
-    wsService.connect();
-
-    // Join meal chat room
-    wsService.joinMealChat(athleteId, mealId);
-
-    // Set up event handlers
-    const handleConnected = () => setIsConnected(true);
-    const handleDisconnected = () => setIsConnected(false);
-    
-    const handleNewMessage = (data) => {
-      if (data.athleteId === athleteId && data.mealId === mealId) {
-        addMessage(data.message);
+    // Subscribe to real-time updates
+    channelRef.current = realtimeService.subscribeMealChat(athleteId, mealId, {
+      onNewMessage: (message) => {
+        setMessages(prev => [...prev, message]);
+      },
+      onPresenceSync: (state) => {
+        setIsConnected(true);
+        // Check if other user is typing
+        const otherUsers = Object.values(state).filter(
+          presence => presence[0]?.user_id !== user.id
+        );
+        setIsTyping(otherUsers.some(u => u[0]?.is_typing));
+      },
+      onUserJoin: ({ newPresences }) => {
+        console.log('User joined:', newPresences);
+      },
+      onUserLeave: ({ leftPresences }) => {
+        console.log('User left:', leftPresences);
       }
-    };
-
-    const handleTypingStart = (data) => {
-      if (data.athleteId === athleteId && data.mealId === mealId && data.sender !== 'trainer') {
-        setIsTyping(true);
-        if (typingTimeout) clearTimeout(typingTimeout);
-        const timeout = setTimeout(() => setIsTyping(false), 3000);
-        setTypingTimeout(timeout);
-      }
-    };
-
-    const handleTypingStop = (data) => {
-      if (data.athleteId === athleteId && data.mealId === mealId) {
-        setIsTyping(false);
-        if (typingTimeout) clearTimeout(typingTimeout);
-      }
-    };
-
-    // Register event handlers
-    wsService.on('connected', handleConnected);
-    wsService.on('disconnected', handleDisconnected);
-    wsService.on('meal-message', handleNewMessage);
-    wsService.on('typing-start', handleTypingStart);
-    wsService.on('typing-stop', handleTypingStop);
+    });
 
     // Cleanup
     return () => {
-      wsService.leaveMealChat(athleteId, mealId);
-      wsService.off('connected', handleConnected);
-      wsService.off('disconnected', handleDisconnected);
-      wsService.off('meal-message', handleNewMessage);
-      wsService.off('typing-start', handleTypingStart);
-      wsService.off('typing-stop', handleTypingStop);
-      if (typingTimeout) clearTimeout(typingTimeout);
+      if (channelRef.current) {
+        realtimeService.unsubscribe(`meal-chat-${athleteId}-${mealId}`);
+      }
     };
-  }, [athleteId, mealId]);
+  }, [athleteId, mealId, user]);
 
   const loadMessages = async () => {
     try {
-      const data = await nutritionService.getMealMessages(athleteId, mealId);
-      setMessages(data.messages);
-      messagesRef.current = data.messages;
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('meal_messages')
+        .select('*')
+        .eq('meal_id', mealId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setMessages(data || []);
     } catch (error) {
-      console.error('Failed to load messages:', error);
+      console.error('Error loading messages:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const addMessage = useCallback((message) => {
-    setMessages(prev => {
-      const updated = [...prev, message];
-      messagesRef.current = updated;
-      return updated;
-    });
-  }, []);
-
   const sendMessage = useCallback(async (content, type = 'text', metadata = {}) => {
-    const message = {
-      id: Date.now(),
-      sender: 'trainer',
-      type,
-      content,
-      metadata,
-      timestamp: new Date().toISOString(),
-      read: false
-    };
-
-    // Optimistic update
-    addMessage(message);
-
     try {
-      // Send via WebSocket
-      wsService.sendMealMessage(athleteId, mealId, message);
-      
-      // Also save to database
-      await nutritionService.sendMealMessage(athleteId, mealId, message);
+      const { data, error } = await supabase
+        .from('meal_messages')
+        .insert({
+          meal_id: mealId,
+          athlete_id: athleteId,
+          sender_id: user.id,
+          sender_role: user.role,
+          type,
+          content,
+          metadata
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Message will be added via realtime subscription
+      return data;
     } catch (error) {
-      console.error('Failed to send message:', error);
-      // Remove optimistic message on error
-      setMessages(prev => prev.filter(m => m.id !== message.id));
+      console.error('Error sending message:', error);
+      throw error;
     }
-  }, [athleteId, mealId, addMessage]);
+  }, [athleteId, mealId, user]);
 
   const sendApproval = useCallback(async (approved) => {
-    const message = {
-      id: Date.now(),
-      sender: 'trainer',
-      type: 'approval',
-      content: approved ? 'Refeição aprovada!' : 'Esta refeição precisa de ajustes',
-      approved,
-      timestamp: new Date().toISOString()
-    };
-
-    addMessage(message);
-
     try {
-      wsService.sendMealApproval(athleteId, mealId, approved);
-      await nutritionService.approveMeal(athleteId, mealId, approved);
+      // Update meal status
+      const { error: mealError } = await supabase
+        .from('meals')
+        .update({
+          status: approved ? 'approved' : 'needs_review',
+          approved_by: user.trainer_id,
+          approved_at: new Date().toISOString()
+        })
+        .eq('id', mealId);
+
+      if (mealError) throw mealError;
+
+      // Send approval message
+      await sendMessage(
+        approved ? 'Refeição aprovada!' : 'Esta refeição precisa de ajustes',
+        'approval',
+        { approved }
+      );
     } catch (error) {
-      console.error('Failed to send approval:', error);
-      setMessages(prev => prev.filter(m => m.id !== message.id));
+      console.error('Error sending approval:', error);
+      throw error;
     }
-  }, [athleteId, mealId, addMessage]);
+  }, [mealId, user, sendMessage]);
 
   const startTyping = useCallback(() => {
-    wsService.startTyping(`meal-${athleteId}-${mealId}`);
+    realtimeService.sendTypingIndicator(
+      `meal-chat-${athleteId}-${mealId}`,
+      true
+    );
   }, [athleteId, mealId]);
 
   const stopTyping = useCallback(() => {
-    wsService.stopTyping(`meal-${athleteId}-${mealId}`);
+    realtimeService.sendTypingIndicator(
+      `meal-chat-${athleteId}-${mealId}`,
+      false
+    );
   }, [athleteId, mealId]);
 
   return {
     messages,
     isConnected,
     isTyping,
+    loading,
     sendMessage,
     sendApproval,
     startTyping,
