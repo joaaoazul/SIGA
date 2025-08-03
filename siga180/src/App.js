@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 
 // Contexts
 import { AppProvider } from './modules/shared/context/AppContext';
-import { AthleteProvider } from './modules/shared/context/AthleteContext';
+import { AthleteProvider } from './modules/shared/context/AthleteContext'; // Corrigido - estava a importar test.supabase
 import { AuthProvider } from './modules/shared/hooks/useAuth';
 
 // Router
@@ -17,7 +17,7 @@ function App() {
         <AppProvider>
           <AthleteProvider>
             <AppRouter />
-            
+           
             {/* Toast Notifications - Design Clean */}
             <Toaster
               position="top-center"
@@ -30,7 +30,7 @@ function App() {
               toastOptions={{
                 // Duração padrão
                 duration: 4000,
-                
+               
                 // Estilos padrão para todos os toasts
                 className: '',
                 style: {
@@ -42,7 +42,7 @@ function App() {
                   fontSize: '14px',
                   maxWidth: '500px',
                 },
-                
+               
                 // Estilos específicos por tipo
                 success: {
                   duration: 3000,

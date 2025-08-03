@@ -1,7 +1,8 @@
 import React from 'react';
 import { useAuth } from '../modules/shared/hooks/useAuth';
-import { TrainerRoutes } from './trainerRoutes'; // 👈 Corrige esta linha
+import { TrainerRoutes } from './trainerRoutes';
 import { AthleteRoutes } from './AthleteRoutes';
+import { AdminRoutes } from './AdminRoutes';
 import { PublicRoutes } from './PublicRoutes';
 
 export const AppRouter = () => {
@@ -17,16 +18,17 @@ export const AppRouter = () => {
   
   if (!user) return <PublicRoutes />;
   
-  // Por agora vamos usar TRAINER como default
-  // Depois adicionas o role ao useAuth
-  const userRole = user.role || 'TRAINER';
+  // Obter role do user
+  const userRole = user.role || user.user_metadata?.role || 'athlete';
   
   switch (userRole) {
-    case 'TRAINER':
+    case 'admin':
+      return <AdminRoutes />;
+    case 'trainer':
       return <TrainerRoutes />;
-    case 'ATHLETE':
+    case 'athlete':
       return <AthleteRoutes />;
     default:
-      return <TrainerRoutes />;
+      return <PublicRoutes />;
   }
 };

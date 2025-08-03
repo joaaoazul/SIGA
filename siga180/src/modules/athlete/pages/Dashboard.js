@@ -23,8 +23,7 @@ import { useAuth } from '../../shared/hooks/useAuth';
 import { useMyNutritionPlan } from '../hooks/useMyPlan';
 import { useMyMealsToday } from '../hooks/useMyPlan';
 import { useMyProgress } from '../hooks/useMyProgress';
-import { useLogMeal } from '../hooks/useMealLogging';
-
+import { useMealLogging } from '../hooks/useMealLogging';
 // Components
 import MacroProgressBar from '../../shared/components/MacroProgressBar';
 import QuickLogModal from '../components/QuickLogModal';
@@ -35,8 +34,7 @@ const AthleteDashboard = () => {
   const { plan, loading: planLoading } = useMyNutritionPlan();
   const { meals, totals, remaining } = useMyMealsToday();
   const { stats } = useMyProgress();
-  const { logMeal, logging } = useLogMeal();
-
+const { logMeal, uploadProgress: logging } = useMealLogging();
   const [showQuickLog, setShowQuickLog] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState(null);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);

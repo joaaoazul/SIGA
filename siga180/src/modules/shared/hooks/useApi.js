@@ -1,59 +1,52 @@
-import { useState, useEffect } from 'react';
+// src/modules/shared/hooks/useApi.js
+import { useState, useEffect, useCallback } from 'react';
 
-export const useApi = (url, options = {}) => {
+export const useApi = (apiCall, dependencies = []) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await fetch(url, {
-          ...options,
-          headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setData(data);
-      } catch (error) {
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (url) {
-      fetchData();
-    }
-  }, [url]);
-
-  const refetch = async () => {
-    setLoading(true);
+  const execute = useCallback(async (...args) => {
     try {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setData(data);
-    } catch (error) {
-      setError(error.message);
+      setLoading(true);
+      setError(null);
+      const response = await apiCall(...args);
+      setData(response);
+      return response;
+    } catch (err) {
+      setError(err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, dependencies);
+
+  useEffect(() => {
+    execute();
+  }, [execute]);
+
+  return { data, loading, error, refetch: execute };
+};
+
+export const useApiMutation = (apiCall) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const mutate = async (...args) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiCall(...args);
+      return response;
+    } catch (err) {
+      setError(err);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  return { data, loading, error, refetch };
+  return { mutate, loading, error };
 };
 
 export default useApi;
