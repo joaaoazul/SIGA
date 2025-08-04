@@ -1,34 +1,105 @@
 import React from 'react';
 import { useAuth } from '../modules/shared/hooks/useAuth';
-import { TrainerRoutes } from './trainerRoutes';
+
+// IMPORTS CORRIGIDOS - nota o 't' minúsculo em trainerRoutes
+import { TrainerRoutes } from './trainerRoutes'; // NOTA: 't' minúsculo!
 import { AthleteRoutes } from './AthleteRoutes';
 import { AdminRoutes } from './AdminRoutes';
 import { PublicRoutes } from './PublicRoutes';
 
+// Debug Component - caminho corrigido
+import DebugAuth from '../modules/shared/components/DebugAuth';
+
+// Loading Component
+const LoadingScreen = () => {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#E8ECE3]">
+      <div className="text-center">
+        <div className="inline-flex items-center justify-center p-4 bg-white rounded-xl shadow-lg mb-6">
+          <div className="animate-pulse">
+            <div className="h-12 w-12 bg-[#333333] rounded"></div>
+          </div>
+        </div>
+        <div className="flex space-x-2 justify-center mb-4">
+          <div className="h-3 w-3 bg-[#333333] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+          <div className="h-3 w-3 bg-[#333333] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+          <div className="h-3 w-3 bg-[#333333] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        </div>
+        <p className="text-gray-600">A carregar...</p>
+      </div>
+    </div>
+  );
+};
+
 export const AppRouter = () => {
   const { user, loading } = useAuth();
   
+  // Debug logs
+  console.log('🔍 AppRouter Render:', { 
+    loading, 
+    userExists: !!user, 
+    userEmail: user?.email,
+    userRole: user?.role 
+  });
+  
+  // Loading State
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
+      <>
+        <LoadingScreen />
+        <DebugAuth />
+      </>
     );
   }
   
-  if (!user) return <PublicRoutes />;
+  // No User - Public Routes
+  if (!user) {
+    console.log('👤 No user - showing PublicRoutes');
+    return (
+      <>
+        <PublicRoutes />
+        <DebugAuth />
+      </>
+    );
+  }
   
-  // Obter role do user
+  // Get user role
   const userRole = user.role || user.user_metadata?.role || 'athlete';
+  console.log('👤 User role:', userRole);
   
+  // Render routes based on role
   switch (userRole) {
     case 'admin':
-      return <AdminRoutes />;
+      console.log('📍 Loading AdminRoutes');
+      return (
+        <>
+          <AdminRoutes />
+          <DebugAuth />
+        </>
+      );
     case 'trainer':
-      return <TrainerRoutes />;
+      console.log('📍 Loading TrainerRoutes');
+      return (
+        <>
+          <TrainerRoutes />
+          <DebugAuth />
+        </>
+      );
     case 'athlete':
-      return <AthleteRoutes />;
+      console.log('📍 Loading AthleteRoutes');
+      return (
+        <>
+          <AthleteRoutes />
+          <DebugAuth />
+        </>
+      );
     default:
-      return <PublicRoutes />;
+      console.warn('⚠️ Unknown role:', userRole);
+      return (
+        <>
+          <PublicRoutes />
+          <DebugAuth />
+        </>
+      );
   }
 };

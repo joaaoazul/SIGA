@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 
 // Contexts
 import { AppProvider } from './modules/shared/context/AppContext';
-import { AthleteProvider } from './modules/shared/context/AthleteContext'; // Corrigido - estava a importar test.supabase
+import { AthleteProvider } from './modules/shared/context/AthleteContext';
 import { AuthProvider } from './modules/shared/hooks/useAuth';
 
 // Router

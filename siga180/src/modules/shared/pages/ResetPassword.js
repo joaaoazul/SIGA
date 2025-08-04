@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../services/supabase/supabaseClient';
+import toast from 'react-hot-toast';
 import { 
   Lock, 
   ArrowRight, 
@@ -12,6 +14,7 @@ import {
 } from 'lucide-react';
 
 const ResetPassword = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -22,14 +25,33 @@ const ResetPassword = () => {
     confirmPassword: ''
   });
 
- useEffect(() => {
-  console.log('URL:', window.location.href);
-  console.log('Hash:', window.location.hash);
-  
-  const params = new URLSearchParams(window.location.hash.substring(1));
-  console.log('Access Token:', params.get('access_token'));
-  console.log('Type:', params.get('type'));
-}, []);
+  // Verificação simplificada - confia que o Supabase já processou o token
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        // Verifica se tem uma sessão válida
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        console.log('🔍 Reset Password - Sessão:', session);
+        
+        if (error || !session) {
+          console.error('❌ Sem sessão válida para reset');
+          toast.error('Link inválido ou expirado');
+          navigate('/login');
+        }
+        
+        // Se chegou aqui, tem sessão válida
+        console.log('✅ Sessão válida para reset password');
+        
+      } catch (error) {
+        console.error('❌ Erro ao verificar sessão:', error);
+        navigate('/login');
+      }
+    };
+
+    // Delay para garantir que o Supabase processou o URL
+    setTimeout(checkAccess, 500);
+  }, [navigate]);
 
   const validatePassword = () => {
     if (formData.password.length < 6) {
@@ -52,15 +74,29 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-    
       const { error } = await supabase.auth.updateUser({ 
-       password: formData.password 
+        password: formData.password 
       });
-      
-    
-      
+
+      if (error) {
+        setError(error.message);
+        toast.error('Erro ao atualizar password');
+      } else {
+        setSuccess(true);
+        toast.success('Password atualizada com sucesso!');
+        
+        // Fazer logout completo
+        await supabase.auth.signOut();
+        
+        // Redirecionar para login após 3 segundos
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
+      }
     } catch (error) {
-      setError('Erro ao atualizar password');
+      console.error('Erro ao atualizar password:', error);
+      setError('Erro ao atualizar password. Tente novamente.');
+    } finally {
       setLoading(false);
     }
   };
