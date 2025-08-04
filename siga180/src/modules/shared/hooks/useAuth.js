@@ -7,45 +7,30 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check current session
-    checkUser();
+ useEffect(() => {
+  // Timeout de segurança - IMPORTANTE!
+  const timeoutId = setTimeout(() => {
+    if (loading) {
+      console.error('⚠️ Loading timeout - forçando false');
+      setLoading(false);
+    }
+  }, 3000); // 3 segundos
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // VERIFICA SE ESTÁ EM RESET PASSWORD
-        if (window.location.pathname === '/reset-password' && event === 'SIGNED_IN') {
-          const hash = window.location.hash;
-          if (hash && hash.includes('type=recovery')) {
-            console.log('Reset password flow - ignorando redirect');
-            setLoading(false);
-            return; // Não atualiza o user durante reset
-          }
-        }
-        
-        // LÓGICA NORMAL
-        if (session?.user) {
-          // Buscar role do perfil
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-            
-          setUser({
-            ...session.user,
-            role: profile?.role || 'athlete'
-          });
-        } else {
-          setUser(null);
-        }
-        setLoading(false);
-      }
-    );
+  // Check current session
+  checkUser();
 
-    return () => subscription.unsubscribe();
-  }, []);
+  // Listen for auth changes
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      // ... resto do código
+    }
+  );
+
+  return () => {
+    clearTimeout(timeoutId);
+    subscription.unsubscribe();
+  };
+}, []);
 
   const checkUser = async () => {
     try {
