@@ -1,97 +1,108 @@
-import React from 'react';
+// src/App.js
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
+import { supabase } from './services/supabase/supabaseClient';
 import { Toaster } from 'react-hot-toast';
+import { PublicRoutes } from './routes/PublicRoutes';
+import { TrainerRoutes } from './routes/trainerRoutes';
+import { AthleteRoutes } from './routes/AthleteRoutes';
 
-// Contexts
-import { AppProvider } from './modules/shared/context/AppContext';
-import { AthleteProvider } from './modules/shared/context/AthleteContext';
-import { AuthProvider } from './modules/shared/hooks/useAuth';
+// Context para Auth
+const AuthContext = React.createContext({});
 
-// Router
-import { AppRouter } from './routes/AppRouter';
+export const useAuth = () => React.useContext(AuthContext);
 
 function App() {
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        setUser(session.user);
+        await loadProfile(session.user.id);
+      }
+    } catch (error) {
+      console.error('Auth check error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadProfile = async (userId) => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (data) {
+        setProfile(data);
+      }
+    } catch (error) {
+      console.error('Profile load error:', error);
+    }
+  };
+
+  // Auth state listener
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
+          await loadProfile(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setProfile(null);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const authValue = {
+    user,
+    profile,
+    loading,
+    isTrainer: profile?.role === 'trainer',
+    isAthlete: profile?.role === 'athlete',
+    refreshProfile: () => user && loadProfile(user.id)
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
-    <Router>
-      <AuthProvider>
-        <AppProvider>
-          <AthleteProvider>
-            <AppRouter />
-           
-            {/* Toast Notifications - Design Clean */}
-            <Toaster
-              position="top-center"
-              reverseOrder={false}
-              gutter={8}
-              containerClassName=""
-              containerStyle={{
-                top: 20,
-              }}
-              toastOptions={{
-                // Duração padrão
-                duration: 4000,
-               
-                // Estilos padrão para todos os toasts
-                className: '',
-                style: {
-                  background: '#fff',
-                  color: '#363636',
-                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  fontSize: '14px',
-                  maxWidth: '500px',
-                },
-               
-                // Estilos específicos por tipo
-                success: {
-                  duration: 3000,
-                  iconTheme: {
-                    primary: '#10B981',
-                    secondary: '#fff',
-                  },
-                  style: {
-                    background: '#fff',
-                    color: '#065F46',
-                    border: '1px solid #D1FAE5',
-                  },
-                },
-                error: {
-                  duration: 5000,
-                  iconTheme: {
-                    primary: '#EF4444',
-                    secondary: '#fff',
-                  },
-                  style: {
-                    background: '#fff',
-                    color: '#991B1B',
-                    border: '1px solid #FEE2E2',
-                  },
-                },
-                loading: {
-                  iconTheme: {
-                    primary: '#3B82F6',
-                    secondary: '#fff',
-                  },
-                  style: {
-                    background: '#fff',
-                    color: '#1E40AF',
-                    border: '1px solid #DBEAFE',
-                  },
-                },
-                // Custom styled toasts
-                custom: {
-                  style: {
-                    background: '#fff',
-                    color: '#363636',
-                  },
-                },
-              }}
-            />
-          </AthleteProvider>
-        </AppProvider>
-      </AuthProvider>
-    </Router>
+    <AuthContext.Provider value={authValue}>
+      <Router>
+        <Toaster position="top-right" />
+        {!user ? (
+          <PublicRoutes />
+        ) : profile?.role === 'trainer' ? (
+          <TrainerRoutes />
+        ) : profile?.role === 'athlete' ? (
+          <AthleteRoutes />
+        ) : (
+          <PublicRoutes />
+        )}
+      </Router>
+    </AuthContext.Provider>
   );
 }
 

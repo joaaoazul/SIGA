@@ -8,19 +8,24 @@ import TestSupabase from '../modules/shared/pages/TestSupabase';
 import NotFound from '../modules/shared/pages/NotFound';
 import CreateAdmin from '../modules/shared/pages/CreateAdmin';
 import ResetPassword from '../modules/shared/pages/ResetPassword';
+import Setup from '../pages/auth/Setup';
+import MagicLinkCallback from '../pages/auth/MagicLinkCallback';
+// import TestAuth from '../modules/shared/pages/TestAuth'; // COMENTA ESTA LINHA
 
 export const PublicRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      // No teu router
-<Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/athlete-setup" element={<AthleteSetup />} />
       <Route path="/404" element={<NotFound />} />
       <Route path="/" element={<Navigate to="/login" />} />
       <Route path="/test-supabase" element={<TestSupabase />} />
+      {/* <Route path="/test-auth" element={<TestAuth />} /> */}
+      <Route path="/create-admin" element={<CreateAdmin />} />
       <Route path="*" element={<Navigate to="/404" />} />
- <Route path="/create-admin" element={<CreateAdmin />} />
+      <Route path="/auth/callback" element={<MagicLinkCallback />} />
+      <Route path="/setup" element={<Setup />} />
     </Routes>
   );
 };

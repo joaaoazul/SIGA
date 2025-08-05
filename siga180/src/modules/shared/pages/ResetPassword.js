@@ -1,3 +1,8 @@
+// =============================================
+// ResetPassword.js - src/modules/shared/pages/ResetPassword.js
+// VERSÃO FINAL CORRIGIDA
+// =============================================
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../services/supabase/supabaseClient';
@@ -20,48 +25,72 @@ const ResetPassword = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isValidSession, setIsValidSession] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [formData, setFormData] = useState({
     password: '',
     confirmPassword: ''
   });
 
-  // Verificação simplificada - confia que o Supabase já processou o token
+  // Verificação da sessão
   useEffect(() => {
-    const checkAccess = async () => {
+    const checkSession = async () => {
       try {
+        // Pequeno delay para garantir que o Supabase processou o URL
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Verifica se tem uma sessão válida
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        console.log('🔍 Reset Password - Sessão:', session);
+        console.log('🔍 Reset Password - Verificando sessão...');
         
         if (error || !session) {
           console.error('❌ Sem sessão válida para reset');
-          toast.error('Link inválido ou expirado');
-          navigate('/login');
+          toast.error('Link inválido ou expirado. Solicite um novo.');
+          
+          // Redireciona para login usando window.location
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+          return;
         }
         
         // Se chegou aqui, tem sessão válida
         console.log('✅ Sessão válida para reset password');
+        setIsValidSession(true);
         
       } catch (error) {
         console.error('❌ Erro ao verificar sessão:', error);
-        navigate('/login');
+        toast.error('Erro ao processar link de recuperação');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      } finally {
+        setCheckingSession(false);
       }
     };
 
-    // Delay para garantir que o Supabase processou o URL
-    setTimeout(checkAccess, 500);
-  }, [navigate]);
+    checkSession();
+  }, []);
 
   const validatePassword = () => {
+    setError('');
+    
+    if (!formData.password) {
+      setError('A password é obrigatória');
+      return false;
+    }
+    
     if (formData.password.length < 6) {
       setError('A password deve ter pelo menos 6 caracteres');
       return false;
     }
+    
     if (formData.password !== formData.confirmPassword) {
       setError('As passwords não coincidem');
       return false;
     }
+    
     return true;
   };
 
@@ -74,32 +103,63 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ 
+      // Atualizar a password
+      const { error: updateError } = await supabase.auth.updateUser({ 
         password: formData.password 
       });
 
-      if (error) {
-        setError(error.message);
+      if (updateError) {
+        console.error('Erro ao atualizar password:', updateError);
+        setError(updateError.message || 'Erro ao atualizar password');
         toast.error('Erro ao atualizar password');
-      } else {
-        setSuccess(true);
-        toast.success('Password atualizada com sucesso!');
-        
-        // Fazer logout completo
-        await supabase.auth.signOut();
-        
-        // Redirecionar para login após 3 segundos
-        setTimeout(() => {
-          navigate('/login');
-        }, 3000);
+        setLoading(false);
+        return;
       }
+
+      // Sucesso!
+      setSuccess(true);
+      toast.success('Password atualizada com sucesso!');
+      
+      // Fazer logout completo para limpar a sessão
+      await supabase.auth.signOut();
+      
+      // Aguardar um pouco para mostrar a mensagem de sucesso
+      setTimeout(() => {
+        // Usar window.location para garantir reload completo
+        window.location.href = '/login';
+      }, 3000);
+      
     } catch (error) {
       console.error('Erro ao atualizar password:', error);
       setError('Erro ao atualizar password. Tente novamente.');
-    } finally {
+      toast.error('Erro ao atualizar password');
       setLoading(false);
     }
   };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Limpar erro quando user digita
+    if (error) setError('');
+  };
+
+  // Loading enquanto verifica sessão
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-[#E8ECE3] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#333333]" />
+          <p className="text-gray-600">A verificar link...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se não tem sessão válida, não mostra nada (já redirecionou)
+  if (!isValidSession) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-[#E8ECE3] flex">
@@ -125,7 +185,7 @@ const ResetPassword = () => {
               {success ? (
                 // Success State
                 <div className="text-center">
-                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4 animate-bounce">
                     <CheckCircle className="h-8 w-8 text-green-600" />
                   </div>
                   <h2 className="text-xl font-bold text-[#333333] mb-2">
@@ -133,10 +193,12 @@ const ResetPassword = () => {
                   </h2>
                   <p className="text-sm text-gray-600 mb-6">
                     A sua password foi atualizada com sucesso.
+                    <br />
+                    Vai ser redirecionado para o login...
                   </p>
                   <div className="flex items-center justify-center text-sm text-gray-500">
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    A redirecionar para o login...
+                    A redirecionar...
                   </div>
                 </div>
               ) : (
@@ -163,9 +225,10 @@ const ResetPassword = () => {
                         type={showPassword ? 'text' : 'password'}
                         required
                         value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        onChange={handleInputChange}
                         className="appearance-none block w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-300 rounded-lg text-[#333333] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all"
                         placeholder="••••••••"
+                        autoFocus
                       />
                       <button
                         type="button"
@@ -198,7 +261,7 @@ const ResetPassword = () => {
                         type={showConfirmPassword ? 'text' : 'password'}
                         required
                         value={formData.confirmPassword}
-                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                        onChange={handleInputChange}
                         onKeyPress={(e) => e.key === 'Enter' && handleSubmit(e)}
                         className="appearance-none block w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-300 rounded-lg text-[#333333] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all"
                         placeholder="••••••••"
@@ -235,6 +298,15 @@ const ResetPassword = () => {
                         </>
                       )}
                     </button>
+                  </div>
+
+                  <div className="text-center">
+                    <a
+                      href="/login"
+                      className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      Voltar ao login
+                    </a>
                   </div>
                 </div>
               )}

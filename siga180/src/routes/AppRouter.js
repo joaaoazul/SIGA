@@ -4,7 +4,6 @@ import { useAuth } from '../modules/shared/hooks/useAuth';
 // IMPORTS CORRIGIDOS - nota o 't' minúsculo em trainerRoutes
 import { TrainerRoutes } from './trainerRoutes'; // NOTA: 't' minúsculo!
 import { AthleteRoutes } from './AthleteRoutes';
-import { AdminRoutes } from './AdminRoutes';
 import { PublicRoutes } from './PublicRoutes';
 
 // Debug Component - caminho corrigido
@@ -69,14 +68,6 @@ export const AppRouter = () => {
   
   // Render routes based on role
   switch (userRole) {
-    case 'admin':
-      console.log('📍 Loading AdminRoutes');
-      return (
-        <>
-          <AdminRoutes />
-          <DebugAuth />
-        </>
-      );
     case 'trainer':
       console.log('📍 Loading TrainerRoutes');
       return (

@@ -1,3 +1,4 @@
+// src/modules/trainer/components/AthleteForm.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -10,6 +11,8 @@ import {
   AlertCircle,
   ArrowRight
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import InviteService from '../../../services/supabase/invite.service';
 
 const AthleteFormWithMagicLink = ({ onSubmit }) => {
   const navigate = useNavigate();
@@ -50,31 +53,45 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
 
     setLoading(true);
     try {
-      // Generate magic link
-      const token = btoa(`${formData.email}-${Date.now()}`).replace(/=/g, '');
-      const link = `${window.location.origin}/athlete-setup?token=${token}`;
-      
-      // Save invite to database
-      const inviteData = {
-        ...formData,
-        status: 'invited',
-        inviteToken: token,
-        invitedAt: new Date().toISOString(),
-        setupCompleted: false
-      };
-      
-      await onSubmit(inviteData);
-      
-      setMagicLink(link);
-      setInviteSent(true);
-      
-      // In production, this would send an email
-      console.log('Sending magic link email to:', formData.email);
-      console.log('Magic link:', link);
+      // Usar o serviço de convites para criar no backend
+      const result = await InviteService.createAthleteInvite({
+        name: formData.name,
+        email: formData.email
+      });
+
+      if (result.success) {
+        // Guardar o link gerado
+        setMagicLink(result.data.inviteLink);
+        setInviteSent(true);
+        
+        // Notificar o componente pai se necessário
+        if (onSubmit) {
+          await onSubmit({
+            ...formData,
+            inviteId: result.data.id,
+            inviteToken: result.data.token,
+            status: 'invited',
+            invitedAt: new Date().toISOString(),
+            setupCompleted: false
+          });
+        }
+        
+        toast.success('Convite enviado com sucesso!');
+        
+        // Log para desenvolvimento
+        console.log('🎉 Convite criado:', {
+          email: formData.email,
+          link: result.data.inviteLink
+        });
+        
+      } else {
+        throw new Error(result.error || 'Erro ao criar convite');
+      }
       
     } catch (error) {
       console.error('Error creating invite:', error);
-      setErrors({ submit: 'Failed to create invite. Please try again.' });
+      setErrors({ submit: error.message || 'Falha ao criar convite. Tente novamente.' });
+      toast.error('Erro ao enviar convite');
     } finally {
       setLoading(false);
     }
@@ -93,6 +110,7 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
       [name]: value
     }));
     
+    // Limpar erro quando o utilizador começa a digitar
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -101,6 +119,7 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
     }
   };
 
+  // Se o convite foi enviado, mostrar tela de sucesso
   if (inviteSent) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-8 max-w-2xl mx-auto">
@@ -168,6 +187,7 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
     );
   }
 
+  // Renderizar o formulário principal
   return (
     <div className="max-w-4xl mx-auto">
       {/* Mode Selector */}
