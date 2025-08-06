@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../services/supabase/supabaseClient';
-import InviteService from '../../services/supabase/invite.service';
+import InviteService from '../../services/supabase/inviteService.js';
 import { Loader2, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 

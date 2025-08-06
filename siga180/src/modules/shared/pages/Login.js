@@ -16,7 +16,7 @@ import {
 const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { signIn } = useAuth();
+  const { user, signIn } = useAuth(); // Adicionar user para verificar se já está logado
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,6 +26,28 @@ const Login = () => {
   const inviteEmail = searchParams.get('email');
   const inviteToken = searchParams.get('token');
   const isFromInvite = searchParams.get('from') === 'invite';
+
+  // Se já estiver logado, redirecionar baseado no role
+  useEffect(() => {
+    if (user && !loading) {
+      console.log('🔄 User already logged in, redirecting based on role:', user.role);
+      
+      // Redirecionar baseado no role
+      switch(user.role) {
+        case 'admin':
+          navigate('/admin');
+          break;
+        case 'trainer':
+          navigate('/trainer/dashboard');
+          break;
+        case 'athlete':
+          navigate('/athlete/dashboard');
+          break;
+        default:
+          navigate('/');
+      }
+    }
+  }, [user, loading, navigate]);
 
   useEffect(() => {
     // Se vem de um convite, pré-preencher email
@@ -42,6 +64,8 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
+    console.log('🔐 Tentando fazer login com:', email);
 
     try {
       // Verificar se é um atleta convidado tentando fazer primeiro login
@@ -61,69 +85,34 @@ const Login = () => {
         }
       }
 
-      // Verificar se o perfil existe
-      const { data: profileCheck } = await supabase
-        .from('profiles')
-        .select('id, first_login')
-        .eq('email', email.trim())
-        .single();
-
-      // Fazer login
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password
-      });
+      // Usar o hook useAuth para fazer login
+      const { data, error } = await signIn(email.trim(), password);
 
       if (error) {
+        console.error('❌ Login error:', error);
+        
         // Tratamento específico de erros
-        if (error.message.includes('Invalid login credentials')) {
+        if (error.message?.includes('Invalid login credentials')) {
           toast.error('Email ou password incorretos');
-        } else if (error.message.includes('Email not confirmed')) {
+        } else if (error.message?.includes('Email not confirmed')) {
           toast.error('Por favor, confirme o seu email antes de fazer login');
-        } else if (error.message.includes('Database')) {
-          // Se for erro de database, tentar criar o perfil
-          console.log('Tentando resolver erro de perfil...');
-          
-          // Obter o user após login
-          const { data: { user } } = await supabase.auth.getUser();
-          
-          if (user && !profileCheck) {
-            // Criar perfil se não existir
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .insert({
-                id: user.id,
-                email: user.email,
-                name: user.email.split('@')[0], // Nome temporário
-                role: 'athlete', // Role padrão
-                created_at: new Date().toISOString()
-              });
-            
-            if (!profileError) {
-              toast.success('Perfil criado com sucesso!');
-              navigate('/');
-              return;
-            }
-          }
-          
-          toast.error('Erro ao acessar a base de dados. Por favor, tente novamente.');
         } else {
-          toast.error(error.message);
+          toast.error(error.message || 'Erro ao fazer login');
         }
+        setLoading(false);
         return;
       }
 
       // Login bem-sucedido
+      console.log('✅ Login successful!');
       toast.success('Login realizado com sucesso!');
       
-      // Não fazer redirecionamento manual - deixar o AppRouter fazer isso
-      // O AppRouter vai detectar a mudança de auth state e redirecionar automaticamente
-      console.log('✅ Login successful - AppRouter will handle redirect');
+      // O useEffect acima vai detectar a mudança no user e redirecionar automaticamente
+      // Não precisamos fazer nada aqui
       
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login exception:', error);
       toast.error('Erro inesperado. Por favor, tente novamente.');
-    } finally {
       setLoading(false);
     }
   };
@@ -168,14 +157,19 @@ const Login = () => {
         navigate(`/athlete-setup?token=${match[1]}`);
       } else if (token.includes('/athlete-setup')) {
         // Se colou o URL completo
-        const url = new URL(token);
-        navigate(url.pathname + url.search);
+        try {
+          const url = new URL(token);
+          navigate(url.pathname + url.search);
+        } catch {
+          toast.error('Link de convite inválido');
+        }
       } else {
         toast.error('Link de convite inválido');
       }
     }
   };
 
+  // Modo de sucesso (recuperação de password)
   if (mode === 'success') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

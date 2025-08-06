@@ -14,7 +14,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import inviteService from '../../../services/supabase/inviteService';
+import inviteService from '../../../services/supabase/inviteService.js';
 
 const AthleteFormWithMagicLink = ({ onSubmit }) => {
   const navigate = useNavigate();

@@ -1,12 +1,14 @@
+// siga180/src/routes/AppRouter.js
+
 import React from 'react';
 import { useAuth } from '../modules/shared/hooks/useAuth';
 
-// IMPORTS CORRIGIDOS - nota o 't' minúsculo em trainerRoutes
-import { TrainerRoutes } from './trainerRoutes'; // NOTA: 't' minúsculo!
+// Imports das rotas
+import { TrainerRoutes } from './trainerRoutes'; // t minúsculo!
 import { AthleteRoutes } from './AthleteRoutes';
 import { PublicRoutes } from './PublicRoutes';
 
-// Debug Component - caminho corrigido
+// Debug Component (opcional - pode remover depois)
 import DebugAuth from '../modules/shared/components/DebugAuth';
 
 // Loading Component
@@ -33,7 +35,7 @@ const LoadingScreen = () => {
 export const AppRouter = () => {
   const { user, loading } = useAuth();
   
-  // Debug logs
+  // Debug logs (remover em produção)
   console.log('🔍 AppRouter Render:', { 
     loading, 
     userExists: !!user, 
@@ -67,30 +69,22 @@ export const AppRouter = () => {
   console.log('👤 User role:', userRole);
   
   // Render routes based on role
-  switch (userRole) {
-    case 'trainer':
-      console.log('📍 Loading TrainerRoutes');
-      return (
-        <>
-          <TrainerRoutes />
-          <DebugAuth />
-        </>
-      );
-    case 'athlete':
-      console.log('📍 Loading AthleteRoutes');
-      return (
-        <>
-          <AthleteRoutes />
-          <DebugAuth />
-        </>
-      );
-    default:
-      console.warn('⚠️ Unknown role:', userRole);
-      return (
-        <>
-          <PublicRoutes />
-          <DebugAuth />
-        </>
-      );
+  if (userRole === 'trainer') {
+    console.log('📍 Loading TrainerRoutes');
+    return (
+      <>
+        <TrainerRoutes />
+        <DebugAuth />
+      </>
+    );
+  } else {
+    // Default para athlete (inclui admin ou qualquer outro role)
+    console.log('📍 Loading AthleteRoutes');
+    return (
+      <>
+        <AthleteRoutes />
+        <DebugAuth />
+      </>
+    );
   }
 };

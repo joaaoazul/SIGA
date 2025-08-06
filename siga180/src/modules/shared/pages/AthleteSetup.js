@@ -16,7 +16,7 @@ import {
   Lock
 } from 'lucide-react';
 import { supabase } from '../../../services/supabase/supabaseClient';
-import inviteService from '../../../services/supabase/inviteService';
+import inviteService from '../../../services/supabase/inviteService.js';
 import toast from 'react-hot-toast';
 
 const AthleteSetup = () => {
