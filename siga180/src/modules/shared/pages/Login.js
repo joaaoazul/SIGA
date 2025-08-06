@@ -114,31 +114,11 @@ const Login = () => {
       }
 
       // Login bem-sucedido
-      
-      // Se é o primeiro login de um atleta convidado
-      if (profileCheck?.first_login === true) {
-        toast.success('Bem-vindo! Por favor, complete seu perfil.');
-        navigate('/athlete/complete-profile');
-        return;
-      }
-      
       toast.success('Login realizado com sucesso!');
       
-      // Verificar role do utilizador para redirecionar corretamente
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
-      
-      // Redirecionar baseado no role
-      if (profile?.role === 'admin') {
-        navigate('/admin');
-      } else if (profile?.role === 'trainer') {
-        navigate('/trainer/dashboard');
-      } else {
-        navigate('/athlete/dashboard');
-      }
+      // Não fazer redirecionamento manual - deixar o AppRouter fazer isso
+      // O AppRouter vai detectar a mudança de auth state e redirecionar automaticamente
+      console.log('✅ Login successful - AppRouter will handle redirect');
       
     } catch (error) {
       console.error('Login error:', error);

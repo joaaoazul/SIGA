@@ -1,6 +1,8 @@
-// src/modules/trainer/components/AthleteForm.js
+
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../shared/hooks/useAuth';
 import { 
   User, 
   Mail, 
@@ -9,35 +11,38 @@ import {
   Copy,
   Check,
   AlertCircle,
-  ArrowRight
+  MessageSquare
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import InviteService from '../../../services/supabase/invite.service';
+import inviteService from '../../../services/supabase/inviteService';
 
 const AthleteFormWithMagicLink = ({ onSubmit }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [mode, setMode] = useState('quickInvite'); // 'quickInvite' or 'fullForm'
   const [formData, setFormData] = useState({
     name: '',
-    email: ''
+    email: '',
+    personalMessage: ''
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
   const [magicLink, setMagicLink] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showMessage, setShowMessage] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = 'Nome é obrigatório';
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'Email é obrigatório';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
+      newErrors.email = 'Email inválido';
     }
 
     setErrors(newErrors);
@@ -53,45 +58,54 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
 
     setLoading(true);
     try {
-      // Usar o serviço de convites para criar no backend
-      const result = await InviteService.createAthleteInvite({
-        name: formData.name,
-        email: formData.email
+      // Obter dados do trainer atual
+      const trainerName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Seu Trainer';
+      
+      // Usar o serviço de convites
+      const result = await inviteService.sendInvite({
+        athleteName: formData.name,
+        athleteEmail: formData.email,
+        trainerId: user.id,
+        trainerName: trainerName,
+        personalMessage: formData.personalMessage || null
       });
 
       if (result.success) {
-        // Guardar o link gerado
-        setMagicLink(result.data.inviteLink);
+        setMagicLink(result.inviteLink);
         setInviteSent(true);
         
         // Notificar o componente pai se necessário
         if (onSubmit) {
           await onSubmit({
-            ...formData,
-            inviteId: result.data.id,
-            inviteToken: result.data.token,
+            name: formData.name,
+            email: formData.email,
+            inviteId: result.invite.id,
+            inviteToken: result.invite.token,
             status: 'invited',
             invitedAt: new Date().toISOString(),
             setupCompleted: false
           });
         }
         
-        toast.success('Convite enviado com sucesso!');
-        
-        // Log para desenvolvimento
-        console.log('🎉 Convite criado:', {
-          email: formData.email,
-          link: result.data.inviteLink
-        });
+        console.log('🎉 Convite criado com sucesso!');
         
       } else {
         throw new Error(result.error || 'Erro ao criar convite');
       }
       
     } catch (error) {
-      console.error('Error creating invite:', error);
-      setErrors({ submit: error.message || 'Falha ao criar convite. Tente novamente.' });
-      toast.error('Erro ao enviar convite');
+      console.error('Erro ao criar convite:', error);
+      
+      let errorMessage = 'Falha ao enviar convite. ';
+      
+      if (error.message?.includes('already')) {
+        errorMessage = 'Este atleta já tem um convite pendente. Verifique a lista de convites.';
+      } else {
+        errorMessage += error.message || 'Tente novamente.';
+      }
+      
+      setErrors({ submit: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -100,6 +114,7 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
   const copyToClipboard = () => {
     navigator.clipboard.writeText(magicLink);
     setCopied(true);
+    toast.success('Link copiado!');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -127,16 +142,16 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Check className="h-8 w-8 text-green-600" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900">Invite Sent Successfully!</h3>
+          <h3 className="text-xl font-semibold text-gray-900">Convite Enviado!</h3>
           <p className="text-gray-600 mt-2">
-            An invitation has been sent to <strong>{formData.email}</strong>
+            Um convite foi enviado para <strong>{formData.email}</strong>
           </p>
         </div>
 
         <div className="bg-gray-50 rounded-lg p-4 mb-6">
           <p className="text-sm text-gray-700 mb-3">
-            The athlete will receive an email with a secure link to complete their profile setup.
-            You can also share this link directly:
+            O atleta receberá um email com um link seguro para completar o perfil.
+            Também pode partilhar este link diretamente:
           </p>
           
           <div className="flex items-center space-x-2">
@@ -144,7 +159,7 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
               type="text"
               value={magicLink}
               readOnly
-              className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+              className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-mono"
             />
             <button
               onClick={copyToClipboard}
@@ -153,34 +168,42 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
               {copied ? (
                 <>
                   <Check className="h-4 w-4 mr-2" />
-                  Copied!
+                  Copiado!
                 </>
               ) : (
                 <>
                   <Copy className="h-4 w-4 mr-2" />
-                  Copy
+                  Copiar
                 </>
               )}
             </button>
           </div>
+
+          {formData.personalMessage && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-xs text-blue-600 font-medium mb-1">Mensagem enviada:</p>
+              <p className="text-sm text-gray-700 italic">"{formData.personalMessage}"</p>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-between">
           <button
             onClick={() => {
               setInviteSent(false);
-              setFormData({ name: '', email: '' });
+              setFormData({ name: '', email: '', personalMessage: '' });
               setMagicLink('');
+              setShowMessage(false);
             }}
             className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            Invite Another
+            Convidar Outro
           </button>
           <button
-            onClick={() => navigate('/athletes')}
+            onClick={() => navigate('/trainer/athletes')}
             className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
           >
-            Back to Athletes
+            Ver Atletas
           </button>
         </div>
       </div>
@@ -192,7 +215,7 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
     <div className="max-w-4xl mx-auto">
       {/* Mode Selector */}
       <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">How would you like to add this athlete?</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Como deseja adicionar este atleta?</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             onClick={() => setMode('quickInvite')}
@@ -209,9 +232,9 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
                 <Send className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="font-medium text-gray-900">Quick Invite</h4>
+                <h4 className="font-medium text-gray-900">Convite Rápido</h4>
                 <p className="text-sm text-gray-600 mt-1">
-                  Send a magic link for the athlete to complete their own profile
+                  Enviar um magic link para o atleta completar o próprio perfil
                 </p>
               </div>
             </div>
@@ -232,9 +255,9 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
                 <User className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="font-medium text-gray-900">Complete Profile</h4>
+                <h4 className="font-medium text-gray-900">Perfil Completo</h4>
                 <p className="text-sm text-gray-600 mt-1">
-                  Fill in all athlete details yourself right now
+                  Preencher todos os detalhes do atleta agora
                 </p>
               </div>
             </div>
@@ -245,13 +268,13 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
       {/* Quick Invite Form */}
       {mode === 'quickInvite' && (
         <form onSubmit={handleQuickInvite} className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Send Athlete Invite</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Enviar Convite</h3>
           
           <div className="space-y-4">
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Athlete Name *
+                Nome do Atleta *
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -263,7 +286,7 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
                   className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
                     errors.name ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
                   }`}
-                  placeholder="John Doe"
+                  placeholder="João Silva"
                 />
               </div>
               {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
@@ -272,7 +295,7 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address *
+                Email do Atleta *
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -284,30 +307,59 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
                   className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
                     errors.email ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
                   }`}
-                  placeholder="john@example.com"
+                  placeholder="joao@exemplo.com"
                 />
               </div>
               {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
             </div>
 
+            {/* Personal Message Toggle */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowMessage(!showMessage)}
+                className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
+              >
+                <MessageSquare className="h-4 w-4 mr-1" />
+                {showMessage ? 'Remover mensagem' : 'Adicionar mensagem personalizada'}
+              </button>
+            </div>
+
+            {/* Personal Message */}
+            {showMessage && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mensagem Personalizada (Opcional)
+                </label>
+                <textarea
+                  name="personalMessage"
+                  value={formData.personalMessage}
+                  onChange={handleChange}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Olá! Estou ansioso para começarmos a treinar juntos..."
+                />
+              </div>
+            )}
+
             {/* Info Box */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex">
-                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="ml-3">
-                  <h4 className="text-sm font-medium text-blue-900">What happens next?</h4>
+                  <h4 className="text-sm font-medium text-blue-900">O que acontece a seguir?</h4>
                   <ul className="mt-2 text-sm text-blue-700 space-y-1">
                     <li className="flex items-start">
                       <span className="mr-2">•</span>
-                      <span>The athlete receives an email with a secure setup link</span>
+                      <span>O atleta recebe um email com link seguro</span>
                     </li>
                     <li className="flex items-start">
                       <span className="mr-2">•</span>
-                      <span>They complete their profile with personal details and preferences</span>
+                      <span>Completa o perfil com detalhes pessoais</span>
                     </li>
                     <li className="flex items-start">
                       <span className="mr-2">•</span>
-                      <span>Once complete, they can access their dashboard and start tracking</span>
+                      <span>Após completar, acede ao dashboard</span>
                     </li>
                   </ul>
                 </div>
@@ -325,10 +377,10 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
-                onClick={() => navigate('/athletes')}
+                onClick={() => navigate('/trainer/athletes')}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                Cancel
+                Cancelar
               </button>
               <button
                 type="submit"
@@ -338,12 +390,12 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
                 {loading ? (
                   <>
                     <span className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></span>
-                    Sending...
+                    A enviar...
                   </>
                 ) : (
                   <>
                     <Send className="h-4 w-4 mr-2" />
-                    Send Invite
+                    Enviar Convite
                   </>
                 )}
               </button>
@@ -356,13 +408,13 @@ const AthleteFormWithMagicLink = ({ onSubmit }) => {
       {mode === 'fullForm' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="text-center">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Redirecting to Full Form...</h3>
-            <p className="text-gray-600 mb-6">Taking you to the complete athlete profile form.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">A redirecionar...</h3>
+            <p className="text-gray-600 mb-6">A abrir o formulário completo de atleta.</p>
             <button
-              onClick={() => navigate('/athletes/new/full')}
+              onClick={() => navigate('/trainer/athletes/new/full')}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              Continue to Full Form
+              Continuar
             </button>
           </div>
         </div>

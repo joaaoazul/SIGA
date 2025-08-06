@@ -53,6 +53,7 @@ function App() {
                 <Routes>
                   <Route path="dashboard" element={<TrainerDashboard />} />
                   {/* Adicionar outras rotas do trainer aqui */}
+                  
                 </Routes>
               </ProtectedRoute>
             }

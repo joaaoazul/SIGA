@@ -1,159 +1,207 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import authService from '../../../services/supabase/authService';
 
-// Criar contexto de autenticação
+// siga180/src/modules/shared/hooks/useAuth.js
+import { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../../../services/supabase/supabaseClient';
+
 const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar sessão ao carregar
+    console.log('🔐 AuthProvider: Iniciando...');
+    
+    // Timeout de segurança
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.error('⚠️ Loading timeout - forçando false');
+        setLoading(false);
+      }
+    }, 5000); // 5 segundos
+
+    // Check current session
     checkUser();
 
-    // Escutar mudanças de autenticação
-    const { data: { subscription } } = authService.onAuthStateChange(
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth event:', event);
+        console.log('🔄 Auth State Changed:', event, session?.user?.email);
         
         if (event === 'SIGNED_IN' && session) {
-          // Utilizador fez login
-          await checkUser();
+          // Buscar role do perfil quando fizer login
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, name')
+            .eq('id', session.user.id)
+            .single();
+          
+          const userWithRole = {
+            ...session.user,
+            role: profile?.role || 'athlete',
+            name: profile?.name || session.user.email
+          };
+          
+          console.log('✅ User logged in with role:', userWithRole.role);
+          setUser(userWithRole);
+          setLoading(false);
+          
         } else if (event === 'SIGNED_OUT') {
-          // Utilizador fez logout
+          console.log('👋 User logged out');
           setUser(null);
-          setProfile(null);
-        } else if (event === 'USER_UPDATED') {
-          // Dados do utilizador foram atualizados
-          await checkUser();
+          setLoading(false);
+          
+        } else if (event === 'USER_UPDATED' && session) {
+          // Atualizar dados do user
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, name')
+            .eq('id', session.user.id)
+            .single();
+          
+          const updatedUser = {
+            ...session.user,
+            role: profile?.role || 'athlete',
+            name: profile?.name || session.user.email
+          };
+          
+          console.log('🔄 User updated:', updatedUser.role);
+          setUser(updatedUser);
+          setLoading(false);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, []); // Array vazio - só executa uma vez
 
-  // Verificar utilizador atual e carregar perfil
   const checkUser = async () => {
     try {
-      const result = await authService.getCurrentUser();
+      console.log('🔍 Checking current user...');
       
-      if (result.success && result.user) {
-        setUser(result.user);
-        setProfile(result.profile);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        console.log('👤 User found:', user.email);
+        
+        // Buscar role do perfil
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, name')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('❌ Error fetching profile:', profileError);
+        }
+        
+        const userWithRole = {
+          ...user,
+          role: profile?.role || 'athlete',
+          name: profile?.name || user.email
+        };
+        
+        console.log('✅ User role:', userWithRole.role);
+        setUser(userWithRole);
       } else {
+        console.log('❌ No user found');
         setUser(null);
-        setProfile(null);
       }
     } catch (error) {
-      console.error('Error checking user:', error);
+      console.error('❌ Error checking user:', error);
       setUser(null);
-      setProfile(null);
     } finally {
+      console.log('✅ Check complete, setting loading to false');
       setLoading(false);
     }
   };
 
-  // Função de login
   const signIn = async (email, password) => {
+    console.log('🔐 Attempting login for:', email);
+    
     try {
-      const result = await authService.signIn(email, password);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password
+      });
       
-      if (result.success) {
-        setUser(result.user);
-        setProfile(result.profile);
+      if (error) {
+        console.error('❌ Login error:', error);
+        return { data: null, error };
       }
       
-      return result;
+      if (data.user) {
+        console.log('✅ Login successful:', data.user.email);
+        
+        // Buscar role após login
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, name')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('⚠️ Profile fetch error:', profileError);
+        }
+        
+        const userWithRole = {
+          ...data.user,
+          role: profile?.role || 'athlete',
+          name: profile?.name || data.user.email
+        };
+        
+        console.log('✅ Setting user with role:', userWithRole.role);
+        setUser(userWithRole);
+        setLoading(false);
+        
+        return { data: { ...data, user: userWithRole }, error: null };
+      }
+      
+      return { data, error };
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('❌ SignIn exception:', error);
+      return { data: null, error };
     }
   };
 
-  // Função de registo
-  const signUp = async (userData) => {
-    try {
-      const result = await authService.signUp(userData);
-      return result;
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Função de logout
   const signOut = async () => {
+    console.log('👋 Signing out...');
+    
     try {
-      const result = await authService.signOut();
+      const { error } = await supabase.auth.signOut();
       
-      if (result.success) {
+      if (!error) {
         setUser(null);
-        setProfile(null);
+        console.log('✅ Signed out successfully');
+      } else {
+        console.error('❌ SignOut error:', error);
       }
       
-      return result;
+      return { error };
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('❌ SignOut exception:', error);
+      return { error };
     }
   };
 
-  // Função para recuperar password
-  const resetPassword = async (email) => {
-    return await authService.resetPassword(email);
-  };
-
-  // Função para atualizar password
-  const updatePassword = async (newPassword) => {
-    return await authService.updatePassword(newPassword);
-  };
-
-  // Função para atualizar perfil
-  const updateProfile = async (updates) => {
-    const result = await authService.updateProfile(updates);
-    
-    if (result.success) {
-      setProfile(result.profile);
-    }
-    
-    return result;
-  };
-
-  // Valores e funções disponíveis no contexto
   const value = {
     user,
-    profile,
     loading,
     signIn,
-    signUp,
     signOut,
-    resetPassword,
-    updatePassword,
-    updateProfile,
-    
-    // Helpers úteis
-    isAuthenticated: !!user,
-    isTrainer: profile?.role === 'trainer',
-    isAthlete: profile?.role === 'athlete',
-    isAdmin: profile?.role === 'admin',
-    
-    // IDs úteis
-    trainerId: profile?.trainer?.id || null,
-    athleteId: profile?.athlete?.id || null
+    checkUser // Expor para poder forçar recheck se necessário
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Hook para usar o contexto de autenticação
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth deve ser usado dentro de AuthProvider');
+    throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
 };

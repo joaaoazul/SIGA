@@ -75,10 +75,11 @@ const Dashboard = () => {
     // Navegar para detalhes da sessão
   };
 
-  const handleMessageClick = (message) => {
+
+  function handleMessageClick(message) {
     console.log('Message clicked:', message);
     // Navegar para mensagens
-  };
+  }
 
   const handleViewMore = () => {
     console.log('View more clicked');
