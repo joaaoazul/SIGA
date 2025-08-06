@@ -1,84 +1,18 @@
-// src/App.js
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
-import { supabase } from './services/supabase/supabaseClient';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { PublicRoutes } from './routes/PublicRoutes';
-import { TrainerRoutes } from './routes/trainerRoutes';
-import { AthleteRoutes } from './routes/AthleteRoutes';
+import { AuthProvider, useAuth } from './modules/shared/hooks/useAuth';
 
-// Context para Auth
-const AuthContext = React.createContext({});
+// Import pages
+import Login from './modules/shared/pages/Login';
 
-export const useAuth = () => React.useContext(AuthContext);
+import ResetPassword from './modules/shared/pages/ResetPassword';
+import TrainerDashboard from './modules/trainer/pages/Dashboard';
+import AthleteDashboard from './modules/athlete/pages/Dashboard';
 
-function App() {
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        setUser(session.user);
-        await loadProfile(session.user.id);
-      }
-    } catch (error) {
-      console.error('Auth check error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadProfile = async (userId) => {
-    try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (data) {
-        setProfile(data);
-      }
-    } catch (error) {
-      console.error('Profile load error:', error);
-    }
-  };
-
-  // Auth state listener
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          setUser(session.user);
-          await loadProfile(session.user.id);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setProfile(null);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const authValue = {
-    user,
-    profile,
-    loading,
-    isTrainer: profile?.role === 'trainer',
-    isAthlete: profile?.role === 'athlete',
-    refreshProfile: () => user && loadProfile(user.id)
-  };
+// Protected Route Component
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -88,21 +22,60 @@ function App() {
     );
   }
 
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return children;
+};
+
+function App() {
   return (
-    <AuthContext.Provider value={authValue}>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Toaster position="top-right" />
-        {!user ? (
-          <PublicRoutes />
-        ) : profile?.role === 'trainer' ? (
-          <TrainerRoutes />
-        ) : profile?.role === 'athlete' ? (
-          <AthleteRoutes />
-        ) : (
-          <PublicRoutes />
-        )}
-      </Router>
-    </AuthContext.Provider>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<Login />} />
+          
+          {/* Reset Password Route */}
+          <Route path="/reset-password" element={<ResetPassword />} />
+
+          {/* Protected Routes - Trainer */}
+          <Route
+            path="/trainer/*"
+            element={
+              <ProtectedRoute allowedRoles={['trainer']}>
+                <Routes>
+                  <Route path="dashboard" element={<TrainerDashboard />} />
+                  {/* Adicionar outras rotas do trainer aqui */}
+                </Routes>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected Routes - Athlete */}
+          <Route
+            path="/athlete/*"
+            element={
+              <ProtectedRoute allowedRoles={['athlete']}>
+                <Routes>
+                  <Route path="dashboard" element={<AthleteDashboard />} />
+                  {/* Adicionar outras rotas do atleta aqui */}
+                </Routes>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Default redirect */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
   );
 }
 
