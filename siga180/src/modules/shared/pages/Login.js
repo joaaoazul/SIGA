@@ -187,10 +187,10 @@ const Login = () => {
               <Dumbbell className="h-10 w-10 text-[#333333]" />
             </div>
             <h1 className="text-4xl font-bold text-[#333333]">
-              180 Performance
+              180 by Binho
             </h1>
             <p className="mt-2 text-sm text-gray-600">
-              {mode === 'login' && 'Sistema de Gestão para Personal Trainers'}
+              {mode === 'login' && 'SIGA180 - Sistema Integrado de Gestão de Atletas'}
               {mode === 'forgot' && 'Recupere o acesso à sua conta'}
               {mode === 'success' && 'Verifique o seu email'}
             </p>
