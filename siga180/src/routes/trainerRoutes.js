@@ -11,8 +11,8 @@ import AddAthlete from '../modules/trainer/pages/AddAthlete';
 import AddAthleteFull from '../modules/trainer/pages/AddAthleteFull';
 import EditAthlete from '../modules/trainer/pages/EditAthlete';
 import WorkoutPlans from '../modules/trainer/pages/WorkoutPlans';
+import WorkoutsModule from '../modules/trainer/pages/Workouts'; // ADICIONAR ESTA LINHA
 import Analytics from '../modules/trainer/pages/Analytics';
-
 // IMPORTANTE: Importar o módulo Nutrition correto (pasta, não ficheiro)
 import NutritionModule from '../modules/trainer/pages/Nutrition'; // Isto vai buscar o index.js da pasta
 
@@ -29,7 +29,8 @@ export const TrainerRoutes = () => {
         <Route path="/athletes/new/full" element={<AddAthleteFull />} />
         <Route path="/athletes/:id" element={<AthleteDetail />} />
         <Route path="/athletes/:id/edit" element={<EditAthlete />} />
-        <Route path="/workouts" element={<WorkoutPlans />} />
+        <Route path="/workouts-old" element={<WorkoutPlans />} /> {/* RENOMEAR TEMPORARIAMENTE */}
+        <Route path="/workouts/*" element={<WorkoutsModule />} /> {/* ADICIONAR NOVA ROTA */}
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/nutrition/*" element={<NutritionModule />} />
         <Route path="/messages" element={<Messages />} />

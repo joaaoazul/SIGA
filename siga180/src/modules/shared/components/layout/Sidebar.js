@@ -23,7 +23,7 @@ const Sidebar = () => {
   const trainerMenuItems = [
     { id: 'home', label: 'Home', icon: Home, path: '/' },
     { id: 'clients', label: 'Clients', icon: Users, path: '/athletes' },
-    { id: 'workouts', label: 'Workouts', icon: Dumbbell, path: '/workouts' },
+ { id: 'workouts', label: 'Workouts', icon: Dumbbell, path: '/workouts' }, 
     { id: 'progress', label: 'Progress', icon: TrendingUp, path: '/analytics' },
     { id: 'nutrition', label: 'Nutrition', icon: Apple, path: '/nutrition' },
     { id: 'messages', label: 'Messages', icon: MessageSquare, path: '/messages' },
