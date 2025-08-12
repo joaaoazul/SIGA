@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import TemplatesView from './views/TemplatesView';
-// Comentar temporariamente as views que ainda não existem
-// import ActiveWorkoutView from './views/ActiveWorkoutView';
-// import ExerciseLibraryView from './views/ExerciseLibraryView';
+import ActiveWorkoutView from './views/ActiveWorkoutView';
+import ExerciseLibraryView from './views/ExerciseLibraryView';
 
 const WorkoutsPage = () => {
   const [currentView, setCurrentView] = useState('templates');
   const [activeWorkout, setActiveWorkout] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
+  // Função para iniciar um treino
   const startWorkout = (template = null) => {
     const workout = {
       id: Date.now(),
@@ -23,15 +23,14 @@ const WorkoutsPage = () => {
 
     setActiveWorkout(workout);
     setCurrentView('active');
-    
-    // Por agora, como não temos a ActiveWorkoutView, vamos só fazer log
-    console.log('Workout iniciado:', workout);
-    alert(`Treino "${workout.templateName}" iniciado! (Vista ainda não implementada)`);
   };
 
+  // Função para terminar o treino
   const finishWorkout = async (workoutData) => {
     try {
       console.log('Saving workout:', workoutData);
+      // TODO: Guardar na BD via Supabase
+      
       setActiveWorkout(null);
       setCurrentView('templates');
     } catch (error) {
@@ -39,6 +38,7 @@ const WorkoutsPage = () => {
     }
   };
 
+  // Renderiza a vista apropriada
   const renderView = () => {
     switch(currentView) {
       case 'templates':
@@ -50,33 +50,29 @@ const WorkoutsPage = () => {
           />
         );
       
-      // Temporariamente simplificado
       case 'active':
-        return (
-          <div className="p-6 text-center">
-            <h2 className="text-2xl font-bold mb-4">Treino em Progresso</h2>
-            <p className="text-gray-600 mb-4">Vista ainda não implementada</p>
-            <button 
-              onClick={() => setCurrentView('templates')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-            >
-              Voltar aos Templates
-            </button>
-          </div>
-        );
+        return activeWorkout ? (
+          <ActiveWorkoutView 
+            workout={activeWorkout}
+            onFinish={finishWorkout}
+            onCancel={() => {
+              if (window.confirm('Tem certeza que deseja cancelar o treino?')) {
+                setActiveWorkout(null);
+                setCurrentView('templates');
+              }
+            }}
+          />
+        ) : null;
       
       case 'exercises':
         return (
-          <div className="p-6 text-center">
-            <h2 className="text-2xl font-bold mb-4">Biblioteca de Exercícios</h2>
-            <p className="text-gray-600 mb-4">Vista ainda não implementada</p>
-            <button 
-              onClick={() => setCurrentView('templates')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-            >
-              Voltar aos Templates
-            </button>
-          </div>
+          <ExerciseLibraryView 
+            onBack={() => setCurrentView('templates')}
+            onSelectExercise={(exercise) => {
+              console.log('Selected exercise:', exercise);
+              // TODO: Adicionar exercício ao treino ativo
+            }}
+          />
         );
       
       default:
@@ -84,6 +80,7 @@ const WorkoutsPage = () => {
     }
   };
 
+  // Prevenir saída acidental durante treino
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (activeWorkout) {

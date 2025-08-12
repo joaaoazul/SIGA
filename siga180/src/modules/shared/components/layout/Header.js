@@ -111,7 +111,7 @@ const Header = ({ onMenuToggle, isSidebarOpen }) => {
             
             <div className="flex items-center ml-4 lg:ml-0">
               <Dumbbell className="h-8 w-8 text-[#333333]" />
-              <span className="ml-2 text-xl font-bold text-[#333333]">180 Performance</span>
+              <span className="ml-2 text-xl font-bold text-[#333333]">180 by Binho</span>
             </div>
           </div>
 
