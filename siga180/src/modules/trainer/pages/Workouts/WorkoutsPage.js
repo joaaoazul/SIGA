@@ -1,97 +1,134 @@
 // src/modules/trainer/pages/Workouts/WorkoutsPage.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import TemplatesView from './views/TemplatesView';
-import ActiveWorkoutView from './views/ActiveWorkoutView';
-import ExerciseLibraryView from './views/ExerciseLibraryView';
+import WorkoutBuilder from './views/WorkoutBuilder';
+import ActiveWorkout from './views/ActiveWorkoutView';
+import { useAuth } from '../../../shared/hooks/useAuth';
 
 const WorkoutsPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const [currentView, setCurrentView] = useState('templates');
-  const [activeWorkout, setActiveWorkout] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
-  // Função para iniciar um treino
-  const startWorkout = (template = null) => {
-    const workout = {
-      id: Date.now(),
-      templateId: template?.id || null,
-      templateName: template?.name || 'Empty Workout',
-      startTime: new Date(),
-      exercises: template ? [...template.exercises] : [],
-      athleteId: null,
-    };
-
-    setActiveWorkout(workout);
-    setCurrentView('active');
-  };
-
-  // Função para terminar o treino
-  const finishWorkout = async (workoutData) => {
-    try {
-      console.log('Saving workout:', workoutData);
-      // TODO: Guardar na BD via Supabase
-      
-      setActiveWorkout(null);
+  // Determinar a vista baseada na URL
+  React.useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/workouts/create')) {
+      setCurrentView('create');
+    } else if (path.includes('/workouts/edit')) {
+      setCurrentView('edit');
+    } else if (path.includes('/workouts/active')) {
+      setCurrentView('active');
+    } else {
       setCurrentView('templates');
-    } catch (error) {
-      console.error('Error saving workout:', error);
+    }
+  }, [location]);
+
+  // Handlers para navegação
+  const handleStartWorkout = (template) => {
+    if (template) {
+      // Iniciar treino com template
+      setSelectedTemplate(template);
+      navigate(`/workouts/active/${template.id}`);
+      setCurrentView('active');
+    } else {
+      // Treino livre sem template
+      navigate('/workouts/active/free');
+      setCurrentView('active');
     }
   };
 
-  // Renderiza a vista apropriada
-  const renderView = () => {
-    switch(currentView) {
+  const handleNavigate = (page) => {
+    switch (page) {
+      case 'create':
+        navigate('/workouts/create');
+        setCurrentView('create');
+        break;
+      case 'builder':
+        navigate('/workouts/create');
+        setCurrentView('create');
+        break;
       case 'templates':
+        navigate('/workouts');
+        setCurrentView('templates');
+        break;
+      default:
+        navigate('/workouts');
+        setCurrentView('templates');
+    }
+  };
+
+  const handleSelectTemplate = (template) => {
+    setSelectedTemplate(template);
+    navigate(`/workouts/edit/${template.id}`);
+    setCurrentView('edit');
+  };
+
+  const handleSaveTemplate = async (templateData) => {
+    // Lógica para guardar template
+    console.log('Saving template:', templateData);
+    // Após guardar, voltar para a lista
+    navigate('/workouts');
+    setCurrentView('templates');
+  };
+
+  const handleEndWorkout = () => {
+    setSelectedTemplate(null);
+    navigate('/workouts');
+    setCurrentView('templates');
+  };
+
+  // Renderizar a vista apropriada
+  const renderView = () => {
+    switch (currentView) {
+      case 'create':
         return (
-          <TemplatesView 
-            onStartWorkout={startWorkout}
-            onNavigate={setCurrentView}
-            onSelectTemplate={setSelectedTemplate}
+          <WorkoutBuilder
+            mode="create"
+            onSave={handleSaveTemplate}
+            onCancel={() => {
+              navigate('/workouts');
+              setCurrentView('templates');
+            }}
+          />
+        );
+      
+      case 'edit':
+        return (
+          <WorkoutBuilder
+            mode="edit"
+            template={selectedTemplate}
+            onSave={handleSaveTemplate}
+            onCancel={() => {
+              navigate('/workouts');
+              setCurrentView('templates');
+            }}
           />
         );
       
       case 'active':
-        return activeWorkout ? (
-          <ActiveWorkoutView 
-            workout={activeWorkout}
-            onFinish={finishWorkout}
-            onCancel={() => {
-              if (window.confirm('Tem certeza que deseja cancelar o treino?')) {
-                setActiveWorkout(null);
-                setCurrentView('templates');
-              }
-            }}
-          />
-        ) : null;
-      
-      case 'exercises':
         return (
-          <ExerciseLibraryView 
-            onBack={() => setCurrentView('templates')}
-            onSelectExercise={(exercise) => {
-              console.log('Selected exercise:', exercise);
-              // TODO: Adicionar exercício ao treino ativo
-            }}
+          <ActiveWorkout
+            template={selectedTemplate}
+            onEndWorkout={handleEndWorkout}
           />
         );
       
+      case 'templates':
       default:
-        return <TemplatesView onStartWorkout={startWorkout} onNavigate={setCurrentView} />;
+        return (
+          <TemplatesView
+            onStartWorkout={handleStartWorkout}
+            onNavigate={handleNavigate}
+            onSelectTemplate={handleSelectTemplate}
+          />
+        );
     }
   };
-
-  // Prevenir saída acidental durante treino
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (activeWorkout) {
-        e.preventDefault();
-        e.returnValue = 'Tem um treino em progresso. Tem certeza que deseja sair?';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [activeWorkout]);
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -13,6 +13,11 @@ import EditAthlete from '../modules/trainer/pages/EditAthlete';
 import WorkoutPlans from '../modules/trainer/pages/WorkoutPlans';
 import WorkoutsModule from '../modules/trainer/pages/Workouts'; // ADICIONAR ESTA LINHA
 import Analytics from '../modules/trainer/pages/Analytics';
+import WorkoutsPage from '../modules/trainer/pages/Workouts/WorkoutsPage';
+import WorkoutBuilder from '../modules/trainer/pages/Workouts/views/WorkoutBuilder';
+import ExerciseManager from '../modules/trainer/pages/Workouts/views/ExerciseManager';
+
+
 // IMPORTANTE: Importar o módulo Nutrition correto (pasta, não ficheiro)
 import NutritionModule from '../modules/trainer/pages/Nutrition'; // Isto vai buscar o index.js da pasta
 
@@ -33,6 +38,10 @@ export const TrainerRoutes = () => {
         <Route path="/workouts/*" element={<WorkoutsModule />} /> {/* ADICIONAR NOVA ROTA */}
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/nutrition/*" element={<NutritionModule />} />
+        <Route path="/workouts" element={<WorkoutsPage />} />
+<Route path="/workouts/exercises" element={<ExerciseManager />} />
+<Route path="/workouts/exercises/new" element={<ExerciseManager createMode />} />
+<Route path="/workouts/create" element={<WorkoutBuilder />} />
         <Route path="/messages" element={<Messages />} />
       </Routes>
     </Layout>

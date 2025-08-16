@@ -27,12 +27,14 @@ import {
   ChevronRight,
   Loader2
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../../../services/supabase/supabaseClient';
 import { useAuth } from '../../../../shared/hooks/useAuth';
 import toast from 'react-hot-toast';
 
 const TemplatesView = ({ onStartWorkout, onNavigate, onSelectTemplate }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [athletes, setAthletes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -344,16 +346,25 @@ const TemplatesView = ({ onStartWorkout, onNavigate, onSelectTemplate }) => {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Templates de Treino</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">Workout</h1>
               <p className="text-sm text-gray-500 mt-1">Gerir e atribuir planos de treino</p>
             </div>
-            <button
-              onClick={() => onNavigate?.('create')}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Template
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate('/workouts/exercises')}
+                className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+              >
+                <Dumbbell className="w-4 h-4 mr-2" />
+                Biblioteca de Exercícios
+              </button>
+              <button
+                onClick={() => onNavigate?.('create')}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Template
+              </button>
+            </div>
           </div>
 
           {/* Stats Cards */}
