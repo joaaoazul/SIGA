@@ -412,41 +412,7 @@ const Login = () => {
 
         {/* Content Overlay */}
         <div className="relative h-full flex flex-col items-center justify-center p-12 text-white">
-          <div className="max-w-sm mx-auto text-center">
-            <Dumbbell className="h-16 w-16 mx-auto mb-6 text-white/20" />
-            <h2 className="text-3xl font-bold mb-4">
-              Gestão Completa de Treino
-            </h2>
-            <p className="text-white/80 mb-8">
-              Plataforma profissional para personal trainers gerirem atletas, planos de treino e acompanhamento de evolução.
-            </p>
-            
-            <div className="space-y-4 text-left">
-              <div className="flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-2 flex-shrink-0"></div>
-                <div>
-                  <p className="font-semibold text-white/90">Gestão de Atletas</p>
-                  <p className="text-sm text-white/60">Perfis completos e acompanhamento personalizado</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-2 flex-shrink-0"></div>
-                <div>
-                  <p className="font-semibold text-white/90">Planos de Treino</p>
-                  <p className="text-sm text-white/60">Criação e gestão de programas personalizados</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-2 flex-shrink-0"></div>
-                <div>
-                  <p className="font-semibold text-white/90">Tracking de Progresso</p>
-                  <p className="text-sm text-white/60">Métricas e evolução em tempo real</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          
         </div>
       </div>
     </div>

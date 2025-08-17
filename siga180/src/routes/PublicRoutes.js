@@ -22,7 +22,6 @@ export const PublicRoutes = () => {
       <Route path="/" element={<Navigate to="/login" />} />
       <Route path="/test-supabase" element={<TestSupabase />} />
       {/* <Route path="/test-auth" element={<TestAuth />} /> */}
-      <Route path="/create-admin" element={<CreateAdmin />} />
       <Route path="*" element={<Navigate to="/404" />} />
       <Route path="/auth/callback" element={<MagicLinkCallback />} />
       <Route path="/setup" element={<Setup />} />

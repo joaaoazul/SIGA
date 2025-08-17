@@ -51,8 +51,8 @@ const Athletes = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Athletes</h1>
-              <p className="text-gray-600 mt-1">Manage your athletes and track their progress</p>
+              <h1 className="text-2xl font-bold text-gray-900">Atletas</h1>
+              <p className="text-gray-600 mt-1">Faz aqui a gestão dos teus atletas e acompanha o seu progresso</p>
             </div>
             <Link
               to="/athletes/new"

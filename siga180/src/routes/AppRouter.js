@@ -23,8 +23,8 @@ const LoadingScreen = () => {
         </div>
         <div className="flex space-x-2 justify-center mb-4">
           <div className="h-3 w-3 bg-[#333333] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-          <div className="h-3 w-3 bg-[#333333] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-          <div className="h-3 w-3 bg-[#333333] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          <div className="h-3 w-3 bg-[#333333] rounded-full animate-bounce" style={{ animationDelay: '100ms' }}></div>
+          <div className="h-3 w-3 bg-[#333333] rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
         </div>
         <p className="text-gray-600">A carregar...</p>
       </div>

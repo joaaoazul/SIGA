@@ -39,9 +39,9 @@ export const TrainerRoutes = () => {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/nutrition/*" element={<NutritionModule />} />
         <Route path="/workouts" element={<WorkoutsPage />} />
-<Route path="/workouts/exercises" element={<ExerciseManager />} />
-<Route path="/workouts/exercises/new" element={<ExerciseManager createMode />} />
-<Route path="/workouts/create" element={<WorkoutBuilder />} />
+        <Route path="/workouts/exercises" element={<ExerciseManager />} />
+        <Route path="/workouts/exercises/new" element={<ExerciseManager createMode />} />
+        <Route path="/workouts/create" element={<WorkoutBuilder />} />
         <Route path="/messages" element={<Messages />} />
       </Routes>
     </Layout>
