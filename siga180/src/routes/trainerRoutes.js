@@ -16,7 +16,7 @@ import Analytics from '../modules/trainer/pages/Analytics';
 import WorkoutsPage from '../modules/trainer/pages/Workouts/WorkoutsPage';
 import WorkoutBuilder from '../modules/trainer/pages/Workouts/views/WorkoutBuilder';
 import ExerciseManager from '../modules/trainer/pages/Workouts/views/ExerciseManager';
-
+import WorkoutsModule from '../modules/trainer/pages/Workouts';
 
 // IMPORTANTE: Importar o módulo Nutrition correto (pasta, não ficheiro)
 import NutritionModule from '../modules/trainer/pages/Nutrition'; // Isto vai buscar o index.js da pasta
@@ -42,6 +42,7 @@ export const TrainerRoutes = () => {
         <Route path="/workouts/exercises" element={<ExerciseManager />} />
         <Route path="/workouts/exercises/new" element={<ExerciseManager createMode />} />
         <Route path="/workouts/create" element={<WorkoutBuilder />} />
+        <Route path="/trainer/workouts/*" element={<WorkoutsModule />} />
         <Route path="/messages" element={<Messages />} />
       </Routes>
     </Layout>
