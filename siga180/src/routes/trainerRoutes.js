@@ -1,4 +1,4 @@
-// src/routes/TrainerRoutes.js
+// src/routes/trainerRoutes.js
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from '../modules/shared/components/layout/Layout';
@@ -10,39 +10,45 @@ import AthleteDetail from '../modules/trainer/pages/AthleteDetail';
 import AddAthlete from '../modules/trainer/pages/AddAthlete';
 import AddAthleteFull from '../modules/trainer/pages/AddAthleteFull';
 import EditAthlete from '../modules/trainer/pages/EditAthlete';
-import WorkoutPlans from '../modules/trainer/pages/WorkoutPlans';
-import WorkoutsModule from '../modules/trainer/pages/Workouts'; // ADICIONAR ESTA LINHA
 import Analytics from '../modules/trainer/pages/Analytics';
-import WorkoutsPage from '../modules/trainer/pages/Workouts/WorkoutsPage';
-import WorkoutBuilder from '../modules/trainer/pages/Workouts/views/WorkoutBuilder';
-import ExerciseManager from '../modules/trainer/pages/Workouts/views/ExerciseManager';
-import WorkoutsModule from '../modules/trainer/pages/Workouts';
 
-// IMPORTANTE: Importar o módulo Nutrition correto (pasta, não ficheiro)
-import NutritionModule from '../modules/trainer/pages/Nutrition'; // Isto vai buscar o index.js da pasta
+// Módulos
+import NutritionModule from '../modules/trainer/pages/Nutrition'; // index.js da pasta
+import WorkoutsModule from '../modules/trainer/pages/Workouts';   // index.js da pasta (a criar)
 
 // Páginas Partilhadas
 import Messages from '../modules/shared/pages/Messages';
+
+// Página antiga temporária (remover depois)
+import WorkoutPlansOld from '../modules/trainer/pages/WorkoutPlans';
 
 export const TrainerRoutes = () => {
   return (
     <Layout title="180 Performance">
       <Routes>
+        {/* Dashboard */}
         <Route path="/" element={<Dashboard />} />
+        
+        {/* Athletes */}
         <Route path="/athletes" element={<Athletes />} />
         <Route path="/athletes/new" element={<AddAthlete />} />
         <Route path="/athletes/new/full" element={<AddAthleteFull />} />
         <Route path="/athletes/:id" element={<AthleteDetail />} />
         <Route path="/athletes/:id/edit" element={<EditAthlete />} />
-        <Route path="/workouts-old" element={<WorkoutPlans />} /> {/* RENOMEAR TEMPORARIAMENTE */}
-        <Route path="/workouts/*" element={<WorkoutsModule />} /> {/* ADICIONAR NOVA ROTA */}
+        
+        {/* Workouts - MÓDULO COMPLETO */}
+        <Route path="/workouts/*" element={<WorkoutsModule />} />
+        
+        {/* Workouts OLD - remover quando o novo estiver pronto */}
+        <Route path="/workouts-old" element={<WorkoutPlansOld />} />
+        
+        {/* Analytics */}
         <Route path="/analytics" element={<Analytics />} />
+        
+        {/* Nutrition - MÓDULO COMPLETO */}
         <Route path="/nutrition/*" element={<NutritionModule />} />
-        <Route path="/workouts" element={<WorkoutsPage />} />
-        <Route path="/workouts/exercises" element={<ExerciseManager />} />
-        <Route path="/workouts/exercises/new" element={<ExerciseManager createMode />} />
-        <Route path="/workouts/create" element={<WorkoutBuilder />} />
-        <Route path="/trainer/workouts/*" element={<WorkoutsModule />} />
+        
+        {/* Messages */}
         <Route path="/messages" element={<Messages />} />
       </Routes>
     </Layout>
