@@ -31,6 +31,7 @@ const AddAthlete = () => {
         </div>
 
         <AthleteFormWithMagicLink onSubmit={handleSubmit} />
+        
       </div>
     
   );

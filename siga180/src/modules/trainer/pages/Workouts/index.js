@@ -1,119 +1,83 @@
 // src/modules/trainer/pages/Workouts/index.js
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
-// Import Views existentes
-import DashboardView from './views/DashboardView';
-import TemplatesView from './views/TemplatesView';
-
-// Views temporárias até implementares
-const BuilderView = () => (
-  <div className="p-6">
-    <h1 className="text-2xl font-bold text-gray-900 mb-4">Criar/Editar Treino</h1>
-    <div className="bg-white rounded-lg shadow p-6">
-      <p className="text-gray-600 mb-4">Construtor de treinos em desenvolvimento...</p>
-      <div className="space-y-4">
-        <div className="h-20 bg-gray-100 rounded animate-pulse"></div>
-        <div className="h-40 bg-gray-100 rounded animate-pulse"></div>
-        <div className="h-32 bg-gray-100 rounded animate-pulse"></div>
-      </div>
+// Loading Component
+const LoadingView = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+      <p className="text-gray-600">A carregar...</p>
     </div>
   </div>
 );
 
-const AssignView = () => (
-  <div className="p-6">
-    <h1 className="text-2xl font-bold text-gray-900 mb-4">Atribuir Treino</h1>
-    <div className="bg-white rounded-lg shadow p-6">
-      <p className="text-gray-600">Selecione o template e os atletas...</p>
-    </div>
-  </div>
-);
-
-const CalendarView = () => (
-  <div className="p-6">
-    <h1 className="text-2xl font-bold text-gray-900 mb-4">Calendário de Treinos</h1>
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="grid grid-cols-7 gap-2">
-        {[...Array(35)].map((_, i) => (
-          <div key={i} className="h-20 border rounded p-2 text-xs">
-            Dia {i + 1}
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
-const AnalyticsView = () => (
-  <div className="p-6">
-    <h1 className="text-2xl font-bold text-gray-900 mb-4">Analytics de Treinos</h1>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="font-semibold mb-4">Taxa de Conclusão</h3>
-        <div className="h-40 bg-gray-100 rounded animate-pulse"></div>
-      </div>
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="font-semibold mb-4">Progressão Média</h3>
-        <div className="h-40 bg-gray-100 rounded animate-pulse"></div>
-      </div>
-    </div>
-  </div>
-);
-
-const ExerciseLibraryView = () => (
-  <div className="p-6">
-    <h1 className="text-2xl font-bold text-gray-900 mb-4">Biblioteca de Exercícios</h1>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {['Supino', 'Agachamento', 'Terra', 'Remada', 'Desenvolvimento', 'Rosca'].map(ex => (
-        <div key={ex} className="bg-white rounded-lg shadow p-4">
-          <div className="h-32 bg-gray-200 rounded mb-3"></div>
-          <h3 className="font-semibold">{ex}</h3>
-          <p className="text-sm text-gray-600">Clique para ver detalhes</p>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-const SessionDetailView = () => (
-  <div className="p-6">
-    <h1 className="text-2xl font-bold text-gray-900 mb-4">Detalhes da Sessão</h1>
-    <div className="bg-white rounded-lg shadow p-6">
-      <p className="text-gray-600">Informações da sessão de treino...</p>
-    </div>
-  </div>
-);
+// Lazy load todas as views para melhor performance
+const DashboardView = lazy(() => import('./views/DashboardView'));
+const TemplatesView = lazy(() => import('./views/TemplatesView'));
+const BuilderView = lazy(() => import('./views/BuilderView'));
+const AssignView = lazy(() => import('./views/AssignView'));
+const CalendarView = lazy(() => import('./views/CalendarView'));
+const AnalyticsView = lazy(() => import('./views/AnalyticsView'));
+const ExerciseLibraryView = lazy(() => import('./views/ExerciseLibraryView'));
+const SessionDetailView = lazy(() => import('./views/SessionDetailView'));
+const AthleteProgressView = lazy(() => import('./views/AthleteProgressView'));
+const VideoReviewView = lazy(() => import('./views/VideoReviewView'));
+const SettingsView = lazy(() => import('./views/SettingsView'));
 
 const WorkoutsModule = () => {
   return (
-    <Routes>
-      {/* Dashboard como default */}
-      <Route index element={<DashboardView />} />
-      <Route path="dashboard" element={<DashboardView />} />
-      
-      {/* Templates */}
-      <Route path="templates" element={<TemplatesView />} />
-      <Route path="builder" element={<BuilderView />} />
-      <Route path="builder/:id" element={<BuilderView />} />
-      
-      {/* Atribuições */}
-      <Route path="assign" element={<AssignView />} />
-      <Route path="assign/:templateId" element={<AssignView />} />
-      
-      {/* Calendário e Sessões */}
-      <Route path="calendar" element={<CalendarView />} />
-      <Route path="session/:id" element={<SessionDetailView />} />
-      
-      {/* Biblioteca de Exercícios */}
-      <Route path="exercises" element={<ExerciseLibraryView />} />
-      
-      {/* Analytics */}
-      <Route path="analytics" element={<AnalyticsView />} />
-      
-      {/* Redirect para dashboard se rota não existir */}
-      <Route path="*" element={<Navigate to="/workouts" replace />} />
-    </Routes>
+    <Suspense fallback={<LoadingView />}>
+      <Routes>
+        {/* Dashboard - Vista principal */}
+        <Route index element={<DashboardView />} />
+        <Route path="dashboard" element={<DashboardView />} />
+        
+        {/* Templates - Gestão de templates */}
+        <Route path="templates" element={<TemplatesView />} />
+        <Route path="templates/:id" element={<SessionDetailView />} />
+        
+        {/* Builder - Criar/Editar treinos */}
+        <Route path="builder" element={<BuilderView />} />
+        <Route path="builder/:id" element={<BuilderView />} />
+        
+        {/* Assign - Atribuir treinos */}
+        <Route path="assign" element={<AssignView />} />
+        <Route path="assign/:templateId" element={<AssignView />} />
+        
+        {/* Calendar - Calendário de sessões */}
+        <Route path="calendar" element={<CalendarView />} />
+        <Route path="calendar/:date" element={<CalendarView />} />
+        
+        {/* Sessions - Detalhes de sessões */}
+        <Route path="session/:id" element={<SessionDetailView />} />
+        <Route path="session/:id/execute" element={<SessionDetailView mode="execute" />} />
+        
+        {/* Exercises - Biblioteca de exercícios */}
+        <Route path="exercises" element={<ExerciseLibraryView />} />
+        <Route path="exercises/new" element={<BuilderView mode="exercise" />} />
+        <Route path="exercises/:id" element={<ExerciseLibraryView />} />
+        
+        {/* Analytics - Análises e relatórios */}
+        <Route path="analytics" element={<AnalyticsView />} />
+        <Route path="analytics/:athleteId" element={<AnalyticsView />} />
+        
+        {/* Progress - Progressão de atletas */}
+        <Route path="progress" element={<AthleteProgressView />} />
+        <Route path="progress/:athleteId" element={<AthleteProgressView />} />
+        <Route path="progress/:athleteId/:exerciseId" element={<AthleteProgressView />} />
+        
+        {/* Videos - Revisão de vídeos */}
+        <Route path="videos" element={<VideoReviewView />} />
+        <Route path="videos/:videoId" element={<VideoReviewView />} />
+        
+        {/* Settings - Configurações do módulo */}
+        <Route path="settings" element={<SettingsView />} />
+        
+        {/* Redirect para dashboard se rota não existir */}
+        <Route path="*" element={<Navigate to="/workouts" replace />} />
+      </Routes>
+    </Suspense>
   );
 };
 
