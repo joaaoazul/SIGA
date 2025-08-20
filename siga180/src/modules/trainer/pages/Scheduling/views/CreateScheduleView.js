@@ -25,6 +25,8 @@ import {
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../../../shared/hooks/useAuth';
 import { supabase } from '../../../../../services/supabase/supabaseClient';
+import notificationWorker from '../../../../../services/notifications/notificationWorker';
+import emailService from '../../../../../services/emails/emailService';
 
 const CreateScheduleView = () => {
   const navigate = useNavigate();
@@ -55,6 +57,7 @@ const CreateScheduleView = () => {
     notes: '',
     reminder_minutes: 60,
     color: '#3B82F6',
+    send_immediate_notification: true, // ADICIONADO
     // Recorrência
     is_recurring: false,
     recurring_pattern: {
@@ -136,17 +139,20 @@ const CreateScheduleView = () => {
     }
   };
 
+  // Função para calcular duração
+  const calculateDuration = (startTime, endTime) => {
+    const start = new Date(`2000-01-01 ${startTime}`);
+    const end = new Date(`2000-01-01 ${endTime}`);
+    const diffMs = end - start;
+    const diffMins = Math.floor(diffMs / 60000);
+    return diffMins > 0 ? diffMins : 60;
+  };
+
   // Atualizar duração quando mudar horário
   useEffect(() => {
     if (formData.start_time && formData.end_time) {
-      const start = new Date(`2000-01-01 ${formData.start_time}`);
-      const end = new Date(`2000-01-01 ${formData.end_time}`);
-      const diffMs = end - start;
-      const diffMins = Math.floor(diffMs / 60000);
-      
-      if (diffMins > 0) {
-        setFormData(prev => ({ ...prev, duration_minutes: diffMins }));
-      }
+      const duration = calculateDuration(formData.start_time, formData.end_time);
+      setFormData(prev => ({ ...prev, duration_minutes: duration }));
     }
   }, [formData.start_time, formData.end_time]);
 
@@ -156,51 +162,140 @@ const CreateScheduleView = () => {
     athlete.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Submeter formulário
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validações
+  // Função de validação
+  const validateForm = () => {
     if (!formData.athlete_id) {
       toast.error('Selecione um atleta');
-      return;
+      return false;
     }
     
     if (!formData.title) {
       toast.error('Adicione um título');
-      return;
+      return false;
     }
     
     if (!formData.scheduled_date) {
       toast.error('Selecione uma data');
-      return;
+      return false;
     }
     
     if (!formData.start_time || !formData.end_time) {
       toast.error('Defina o horário');
-      return;
+      return false;
     }
     
     if (formData.is_online && !formData.meeting_link) {
       toast.error('Adicione o link da reunião');
+      return false;
+    }
+
+    return true;
+  };
+
+  // Enviar notificação imediata
+  const sendImmediateNotification = async (schedule) => {
+    try {
+      // Buscar dados completos
+      const { data: fullSchedule } = await supabase
+        .from('schedules')
+        .select(`
+          *,
+          athlete:athlete_id(full_name, email),
+          trainer:trainer_id(full_name)
+        `)
+        .eq('id', schedule.id)
+        .single();
+
+      if (fullSchedule && fullSchedule.athlete) {
+        const date = new Date(fullSchedule.scheduled_date).toLocaleDateString('pt-PT', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+
+        // Enviar email de confirmação
+        await emailService.sendEmail({
+          to: fullSchedule.athlete.email,
+          subject: `📅 Novo Agendamento: ${fullSchedule.title}`,
+          html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; }
+    .content { background: white; padding: 30px; border: 1px solid #e5e7eb; border-radius: 0 0 10px 10px; }
+    .info-box { background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .button { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0;">📅 Novo Agendamento Criado</h1>
+    </div>
+    <div class="content">
+      <p>Olá <strong>${fullSchedule.athlete.full_name}</strong>,</p>
+      <p>Foi agendada uma nova sessão para si:</p>
+      
+      <div class="info-box">
+        <h3 style="margin-top: 0;">${fullSchedule.title}</h3>
+        <p><strong>📅 Data:</strong> ${date}</p>
+        <p><strong>⏰ Horário:</strong> ${fullSchedule.start_time?.slice(0, 5)} - ${fullSchedule.end_time?.slice(0, 5)}</p>
+        <p><strong>📋 Tipo:</strong> ${sessionTypes.find(t => t.value === fullSchedule.type)?.label || fullSchedule.type}</p>
+        <p><strong>👤 Treinador:</strong> ${fullSchedule.trainer.full_name}</p>
+        ${fullSchedule.location ? `<p><strong>📍 Local:</strong> ${fullSchedule.location}</p>` : ''}
+        ${fullSchedule.is_online ? `<p><strong>💻 Formato:</strong> Online</p>` : ''}
+      </div>
+      
+      ${fullSchedule.description ? `<p><strong>Descrição:</strong> ${fullSchedule.description}</p>` : ''}
+      
+      <p>Será enviado um lembrete ${formData.reminder_minutes > 0 ? `${formData.reminder_minutes} minutos antes da sessão.` : 'no dia da sessão.'}</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${process.env.REACT_APP_BASE_URL || window.location.origin}/athlete/schedule" class="button">Ver Agenda Completa</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+          `
+        });
+
+        console.log('✅ Notificação imediata enviada');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar notificação imediata:', error);
+      // Não lançar erro para não bloquear a criação do agendamento
+    }
+  };
+
+  // Submeter formulário (VERSÃO CORRIGIDA)
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
+    
+    if (!validateForm()) {
       return;
     }
 
+    setSaving(true);
+
     try {
-      setSaving(true);
-      
-      // Preparar dados para salvar
+      // Preparar dados do agendamento
       const scheduleData = {
         trainer_id: user?.id,
         athlete_id: formData.athlete_id,
         title: formData.title,
         description: formData.description,
+        type: formData.type,
         scheduled_date: formData.scheduled_date,
         start_time: formData.start_time,
         end_time: formData.end_time,
-        duration_minutes: formData.duration_minutes,
-        type: formData.type,
-        status: formData.status,
+        duration_minutes: calculateDuration(formData.start_time, formData.end_time),
+        status: 'scheduled',
         location: formData.is_online ? null : formData.location,
         is_online: formData.is_online,
         meeting_link: formData.is_online ? formData.meeting_link : null,
@@ -218,17 +313,32 @@ const CreateScheduleView = () => {
         await createRecurringSchedules(scheduleData);
       } else {
         // Criar agendamento único
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('schedules')
-          .insert([scheduleData]);
+          .insert([scheduleData])
+          .select()
+          .single();
 
         if (error) {
           console.error('Error creating schedule:', error);
           toast.error('Erro ao criar agendamento');
-        } else {
-          toast.success('Agendamento criado com sucesso!');
-          navigate('/schedule');
+          return;
         }
+
+        // Criar notificações para o agendamento
+        const notificationResult = await notificationWorker.createScheduleNotifications(data.id);
+        
+        if (notificationResult.success) {
+          console.log(`✅ ${notificationResult.count} notificações criadas`);
+          
+          // Enviar notificação imediata de novo agendamento
+          if (formData.send_immediate_notification) {
+            await sendImmediateNotification(data);
+          }
+        }
+
+        toast.success('Agendamento criado com sucesso!');
+        navigate('/schedule');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -259,22 +369,34 @@ const CreateScheduleView = () => {
         schedules.push({
           ...baseSchedule,
           scheduled_date: scheduleDate.toISOString().split('T')[0],
-          parent_schedule_id: i === 0 ? null : schedules[0].id,
           occurrence_number: i + 1
         });
       }
       
-      const { error } = await supabase
+      // Inserir todos os agendamentos
+      const { data, error } = await supabase
         .from('schedules')
-        .insert(schedules);
+        .insert(schedules)
+        .select();
 
       if (error) {
         console.error('Error creating recurring schedules:', error);
         toast.error('Erro ao criar agendamentos recorrentes');
-      } else {
-        toast.success(`${schedules.length} agendamentos criados com sucesso!`);
-        navigate('/schedule');
+        return;
       }
+
+      // Criar notificações para cada agendamento
+      for (const schedule of data) {
+        await notificationWorker.createScheduleNotifications(schedule.id);
+      }
+
+      // Enviar notificação imediata apenas para o primeiro
+      if (formData.send_immediate_notification && data.length > 0) {
+        await sendImmediateNotification(data[0]);
+      }
+
+      toast.success(`${schedules.length} agendamentos criados com sucesso!`);
+      navigate('/schedule');
     } catch (error) {
       console.error('Error:', error);
       toast.error('Erro ao criar agendamentos recorrentes');
@@ -296,6 +418,18 @@ const CreateScheduleView = () => {
       }
     }));
   };
+
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.athlete-dropdown-container')) {
+        setShowAthleteDropdown(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   if (loading) {
     return (
@@ -363,7 +497,7 @@ const CreateScheduleView = () => {
                 
                 <div className="space-y-4">
                   {/* Atleta */}
-                  <div>
+                  <div className="athlete-dropdown-container">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <User size={16} className="inline mr-1" />
                       Atleta *
@@ -677,25 +811,41 @@ const CreateScheduleView = () => {
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Notificações</h2>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Bell size={16} className="inline mr-1" />
-                    Lembrete
-                  </label>
-                  <select
-                    value={formData.reminder_minutes}
-                    onChange={(e) => updateField('reminder_minutes', parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    {reminderOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    O atleta receberá uma notificação antes da sessão
-                  </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Bell size={16} className="inline mr-1" />
+                      Lembrete
+                    </label>
+                    <select
+                      value={formData.reminder_minutes}
+                      onChange={(e) => updateField('reminder_minutes', parseInt(e.target.value))}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      {reminderOptions.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      O atleta receberá uma notificação antes da sessão
+                    </p>
+                  </div>
+
+                  {/* Notificação Imediata */}
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="send_immediate"
+                      checked={formData.send_immediate_notification}
+                      onChange={(e) => updateField('send_immediate_notification', e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="send_immediate" className="ml-2 text-sm text-gray-700">
+                      Enviar notificação imediata ao atleta
+                    </label>
+                  </div>
                 </div>
               </div>
 
