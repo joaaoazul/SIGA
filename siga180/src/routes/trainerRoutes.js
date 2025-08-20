@@ -11,16 +11,16 @@ import AddAthlete from '../modules/trainer/pages/AddAthlete';
 import AddAthleteFull from '../modules/trainer/pages/AddAthleteFull';
 import EditAthlete from '../modules/trainer/pages/EditAthlete';
 import Analytics from '../modules/trainer/pages/Analytics';
-import SchedulingModule from './../modules/trainer/pages/Scheduling';
 
 // Módulos
-import NutritionModule from '../modules/trainer/pages/Nutrition'; // index.js da pasta
-import WorkoutsModule from '../modules/trainer/pages/Workouts';   // index.js da pasta (a criar)
+import NutritionModule from '../modules/trainer/pages/Nutrition';
+import WorkoutsModule from '../modules/trainer/pages/Workouts';
+import SchedulingModule from '../modules/trainer/pages/Scheduling'; // IMPORTANTE: Confirma que este ficheiro existe!
 
 // Páginas Partilhadas
 import Messages from '../modules/shared/pages/Messages';
 
-// Página antiga temporária (remover depois)
+// Página antiga temporária
 import WorkoutPlansOld from '../modules/trainer/pages/WorkoutPlans';
 
 export const TrainerRoutes = () => {
@@ -40,7 +40,7 @@ export const TrainerRoutes = () => {
         {/* Workouts - MÓDULO COMPLETO */}
         <Route path="/workouts/*" element={<WorkoutsModule />} />
         
-        {/* Workouts OLD - remover quando o novo estiver pronto */}
+        {/* Workouts OLD */}
         <Route path="/workouts-old" element={<WorkoutPlansOld />} />
         
         {/* Analytics */}
@@ -49,11 +49,11 @@ export const TrainerRoutes = () => {
         {/* Nutrition - MÓDULO COMPLETO */}
         <Route path="/nutrition/*" element={<NutritionModule />} />
         
+        {/* SCHEDULE/SCHEDULING - CORRIGIDO COM /* NO FIM! */}
+        <Route path="/schedule/*" element={<SchedulingModule />} />
+        
         {/* Messages */}
         <Route path="/messages" element={<Messages />} />
-      
-
-<Route path="/Schedule" element={<SchedulingModule />} />
       </Routes>
     </Layout>
   );

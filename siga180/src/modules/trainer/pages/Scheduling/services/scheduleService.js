@@ -1,10 +1,7 @@
 // src/modules/trainer/pages/Scheduling/services/scheduleService.js
-import { supabase } from '../../../../../lib/supabase';
-
+import { supabase } from '../../../../../services/supabase/supabaseClient'; // Ajusta o caminho conforme necessário
 class ScheduleService {
-  // ========================================
-  // CRUD OPERATIONS
-  // ========================================
+
 
   /**
    * Buscar agendamentos com filtros
