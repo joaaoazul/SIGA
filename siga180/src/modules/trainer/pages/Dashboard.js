@@ -264,7 +264,7 @@ const Dashboard = () => {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
         <button
-          onClick={() => navigate('/workouts')}
+          onClick={() => navigate('/workouts/builder')}
           className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-all group"
         >
           <div className="flex items-center space-x-3">

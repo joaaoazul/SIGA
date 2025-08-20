@@ -18,12 +18,11 @@ const TemplatesView = lazy(() => import('./views/TemplatesView'));
 const BuilderView = lazy(() => import('./views/BuilderView'));
 const AssignView = lazy(() => import('./views/AssignView'));
 const CalendarView = lazy(() => import('./views/CalendarView'));
-const AnalyticsView = lazy(() => import('./views/AnalyticsView'));
 const ExerciseLibraryView = lazy(() => import('./views/ExerciseLibraryView'));
 const SessionDetailView = lazy(() => import('./views/SessionDetailView'));
-const AthleteProgressView = lazy(() => import('./views/AthleteProgressView'));
 const VideoReviewView = lazy(() => import('./views/VideoReviewView'));
-const SettingsView = lazy(() => import('./views/SettingsView'));
+const AthleteProgressView = lazy(() => import('./views/AthletesProgressView'));
+
 
 const WorkoutsModule = () => {
   return (
@@ -58,9 +57,6 @@ const WorkoutsModule = () => {
         <Route path="exercises/new" element={<BuilderView mode="exercise" />} />
         <Route path="exercises/:id" element={<ExerciseLibraryView />} />
         
-        {/* Analytics - Análises e relatórios */}
-        <Route path="analytics" element={<AnalyticsView />} />
-        <Route path="analytics/:athleteId" element={<AnalyticsView />} />
         
         {/* Progress - Progressão de atletas */}
         <Route path="progress" element={<AthleteProgressView />} />
@@ -72,8 +68,6 @@ const WorkoutsModule = () => {
         <Route path="videos/:videoId" element={<VideoReviewView />} />
         
         {/* Settings - Configurações do módulo */}
-        <Route path="settings" element={<SettingsView />} />
-        
         {/* Redirect para dashboard se rota não existir */}
         <Route path="*" element={<Navigate to="/workouts" replace />} />
       </Routes>

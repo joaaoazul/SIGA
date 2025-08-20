@@ -11,6 +11,7 @@ import AddAthlete from '../modules/trainer/pages/AddAthlete';
 import AddAthleteFull from '../modules/trainer/pages/AddAthleteFull';
 import EditAthlete from '../modules/trainer/pages/EditAthlete';
 import Analytics from '../modules/trainer/pages/Analytics';
+import SchedulingModule from './../modules/trainer/pages/Scheduling';
 
 // Módulos
 import NutritionModule from '../modules/trainer/pages/Nutrition'; // index.js da pasta
@@ -50,6 +51,9 @@ export const TrainerRoutes = () => {
         
         {/* Messages */}
         <Route path="/messages" element={<Messages />} />
+      
+
+<Route path="/Schedule" element={<SchedulingModule />} />
       </Routes>
     </Layout>
   );

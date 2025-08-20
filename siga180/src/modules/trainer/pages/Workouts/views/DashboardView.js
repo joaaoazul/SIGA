@@ -20,13 +20,11 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import workoutService from '../services/workoutService';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASE_ANON_KEY
-);
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const DashboardView = () => {
   const navigate = useNavigate();
@@ -87,7 +85,10 @@ const DashboardView = () => {
   };
 
   const loadTemplates = async (trainerId) => {
-    const { data } = await workoutService.getTemplates(trainerId);
+    const { data } = await supabase
+      .from('workout_templates')
+      .select('*')
+      .eq('trainer_id', trainerId);
     return data || [];
   };
 
@@ -96,10 +97,26 @@ const DashboardView = () => {
     const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
     const weekEnd = new Date(today.setDate(today.getDate() + 6));
     
-    const { data } = await workoutService.getWorkoutSessions({
-      dateFrom: weekStart.toISOString().split('T')[0],
-      dateTo: weekEnd.toISOString().split('T')[0]
-    });
+    const { data } = await supabase
+      .from('workout_sessions')
+      .select(`
+        *,
+        athlete:athletes (
+          id,
+          name,
+          profile:profiles!athletes_profile_id_fkey (
+            name,
+            avatar_url
+          )
+        ),
+        workout_template:workout_templates (
+          name,
+          estimated_duration_minutes
+        )
+      `)
+      .eq('trainer_id', trainerId)
+      .gte('scheduled_date', weekStart.toISOString())
+      .lte('scheduled_date', weekEnd.toISOString());
     
     if (data) {
       // Separar atividade recente e próximas sessões
@@ -110,9 +127,9 @@ const DashboardView = () => {
         .map(s => ({
           id: s.id,
           type: s.status === 'completed' ? 'completed' : 'started',
-          athlete: s.athlete?.name || 'Atleta',
+          athlete: s.athlete?.profile?.name || s.athlete?.name || 'Atleta',
           workout: s.workout_template?.name || 'Treino',
-          time: formatTimeAgo(new Date(s.completed_at || s.started_at)),
+          time: formatTimeAgo(new Date(s.completed_at || s.started_at || s.scheduled_date)),
           completion: s.status === 'completed' ? 100 : 50,
           duration: s.workout_template?.estimated_duration_minutes || 60
         }));
@@ -122,7 +139,7 @@ const DashboardView = () => {
         .slice(0, 5)
         .map(s => ({
           id: s.id,
-          athlete: s.athlete?.name || 'Atleta',
+          athlete: s.athlete?.profile?.name || s.athlete?.name || 'Atleta',
           athleteId: s.athlete_id,
           workout: s.workout_template?.name || 'Treino',
           time: new Date(s.scheduled_date).toLocaleTimeString('pt-PT', { 
@@ -175,7 +192,7 @@ const DashboardView = () => {
             avatar: athlete.profile?.avatar_url,
             streak: calculateStreak(sessions),
             completion: total > 0 ? Math.round((completed / total) * 100) : 0,
-            progress: '+' + Math.round(Math.random() * 20) + '%', // Placeholder
+            progress: '+' + Math.round(Math.random() * 20) + '%', // Placeholder - calcular progresso real
             lastWorkout: lastWorkout 
               ? formatTimeAgo(new Date(lastWorkout.completed_at))
               : 'Nunca'
@@ -191,13 +208,8 @@ const DashboardView = () => {
   };
 
   const loadAnalytics = async (trainerId) => {
-    const dateRange = {
-      from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      to: new Date().toISOString().split('T')[0]
-    };
-    
-    const { data } = await workoutService.getWorkoutAnalytics(trainerId, dateRange);
-    return data;
+    // Placeholder para analytics
+    return {};
   };
 
   const calculateStats = (templates, sessions, athletes, analytics) => {
@@ -236,7 +248,6 @@ const DashboardView = () => {
         },
         (payload) => {
           console.log('Realtime update:', payload);
-          // Recarregar dados relevantes
           handleRealtimeUpdate(payload);
         }
       )
@@ -247,9 +258,9 @@ const DashboardView = () => {
     if (payload.eventType === 'UPDATE') {
       // Atualizar sessão específica
       if (payload.new.status === 'in_progress') {
-        toast.success(`${payload.new.athlete_name} iniciou o treino!`);
+        toast.success(`Atleta iniciou o treino!`);
       } else if (payload.new.status === 'completed') {
-        toast.success(`${payload.new.athlete_name} completou o treino!`);
+        toast.success(`Treino concluído!`);
       }
       
       // Recarregar dados parcialmente
@@ -421,7 +432,7 @@ const DashboardView = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Atividade Recente</h3>
             <button 
-              onClick={() => navigate('/workouts/analytics')}
+              onClick={() => navigate('/workouts/progress')}
               className="text-sm text-blue-600 hover:text-blue-700"
             >
               Ver tudo <ChevronRight className="inline h-4 w-4" />
@@ -473,10 +484,10 @@ const DashboardView = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Hoje</h3>
             <button 
-              onClick={() => navigate('/workouts/calendar')}
+              onClick={() => navigate('/schedules')} // MUDANÇA: Link para módulo de agendamentos
               className="text-sm text-blue-600 hover:text-blue-700"
             >
-              Calendário <ChevronRight className="inline h-4 w-4" />
+              Agendamentos <ChevronRight className="inline h-4 w-4" />
             </button>
           </div>
 
@@ -506,7 +517,7 @@ const DashboardView = () => {
               <Calendar className="mx-auto h-12 w-12 text-gray-300 mb-3" />
               <p className="text-sm">Sem sessões agendadas</p>
               <button
-                onClick={() => navigate('/workouts/assign')}
+                onClick={() => navigate('/schedules/new')} // MUDANÇA: Link para criar agendamento
                 className="mt-3 text-sm text-blue-600 hover:text-blue-700"
               >
                 Agendar treino
@@ -522,7 +533,7 @@ const DashboardView = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Top Performers</h3>
             <button 
-              onClick={() => navigate('/workouts/analytics')}
+              onClick={() => navigate('/workouts/progress')}
               className="text-sm text-blue-600 hover:text-blue-700"
             >
               Ver rankings <ChevronRight className="inline h-4 w-4" />
@@ -583,7 +594,7 @@ const DashboardView = () => {
         </div>
       )}
 
-      {/* Quick Actions */}
+      {/* Quick Actions - ATUALIZADO */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <button
           onClick={() => navigate('/workouts/builder')}
@@ -614,19 +625,19 @@ const DashboardView = () => {
           <div className="p-3 bg-green-100 rounded-lg inline-block mb-2 group-hover:bg-green-200 transition-colors">
             <Send className="h-6 w-6 text-green-600" />
           </div>
-          <p className="font-medium text-gray-900">Atribuir Treino</p>
-          <p className="text-xs text-gray-500 mt-1">Enviar para atleta</p>
+          <p className="font-medium text-gray-900">Atribuir Template</p>
+          <p className="text-xs text-gray-500 mt-1">Definir treino do atleta</p>
         </button>
 
         <button
-          onClick={() => navigate('/workouts/analytics')}
+          onClick={() => navigate('/schedules')} // MUDANÇA: Link direto para agendamentos
           className="p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all text-center group"
         >
           <div className="p-3 bg-yellow-100 rounded-lg inline-block mb-2 group-hover:bg-yellow-200 transition-colors">
-            <BarChart3 className="h-6 w-6 text-yellow-600" />
+            <Calendar className="h-6 w-6 text-yellow-600" />
           </div>
-          <p className="font-medium text-gray-900">Analytics</p>
-          <p className="text-xs text-gray-500 mt-1">Métricas e relatórios</p>
+          <p className="font-medium text-gray-900">Agendamentos</p>
+          <p className="text-xs text-gray-500 mt-1">Gerir horários</p>
         </button>
       </div>
     </div>
