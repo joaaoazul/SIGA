@@ -46,7 +46,7 @@ const ListView = () => {
   const [itemsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   
-  // Filtros
+
   const [filters, setFilters] = useState({
     search: '',
     athleteId: 'all',
@@ -65,7 +65,7 @@ const ListView = () => {
   
   // Seleção múltipla
   const [selectedItems, setSelectedItems] = useState([]);
-  const [selectAll, setSelectAll] = useState(false);
+  const [selectAll, setSelectAll] = useState(false); 
 
   // ========================================
   // FETCH DATA
@@ -694,6 +694,8 @@ const ListView = () => {
             </tbody>
           </table>
         </div>
+
+        
         
         {/* Paginação */}
         {totalPages > 1 && (

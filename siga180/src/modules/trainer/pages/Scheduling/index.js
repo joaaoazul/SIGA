@@ -8,13 +8,14 @@ import ListView from './views/ListView';
 import EditScheduleView from './views/EditScheduleView';
 import ScheduleDetailView from './views/ScheduleDetailView';
 import RecurringView from './views/RecurringView';
+import AvailabilityView from './views/AvailabilityView';
 
 // Componente temporário para views em desenvolvimento
 const ComingSoon = ({ title }) => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
     <div className="text-center">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">{title}</h1>
-      <p className="text-gray-600">Em desenvolvimento...</p>
+      <p className="text-gray-600">A arrumar os halteres na bancada...</p>
     </div>
   </div>
 );
@@ -32,7 +33,7 @@ const SchedulingModule = () => {
       <Route path="create" element={<CreateScheduleView />} />
       <Route path="edit/:id" element={<EditScheduleView />} />
       <Route path="detail/:id" element={<ComingSoon title="Detalhes" />} />
-      <Route path="availability" element={<ComingSoon title="Disponibilidade" />} />
+      <Route path="availability" element={<AvailabilityView/>} />
       <Route path="recurring" element={<RecurringView/>} />
       <Route path="detail/:id" element={<ScheduleDetailView />} />
       {/* Fallback */}
