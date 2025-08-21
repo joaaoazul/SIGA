@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import { supabase } from '../supabase/supabaseClient';
 
 // Inicializar Resend com a API Key
+// emailService.js
 const resend = new Resend(process.env.REACT_APP_RESEND_API_KEY);
 
 class EmailService {
