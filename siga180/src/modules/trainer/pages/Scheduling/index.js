@@ -6,7 +6,8 @@ import CalendarView from './views/CalendarView';
 import CreateScheduleView from './views/CreateScheduleView';
 import ListView from './views/ListView';
 import EditScheduleView from './views/EditScheduleView';
-
+import ScheduleDetailView from './views/ScheduleDetailView';
+import RecurringView from './views/RecurringView';
 
 // Componente temporário para views em desenvolvimento
 const ComingSoon = ({ title }) => (
@@ -32,8 +33,8 @@ const SchedulingModule = () => {
       <Route path="edit/:id" element={<EditScheduleView />} />
       <Route path="detail/:id" element={<ComingSoon title="Detalhes" />} />
       <Route path="availability" element={<ComingSoon title="Disponibilidade" />} />
-      <Route path="recurring" element={<ComingSoon title="Recorrentes" />} />
-      
+      <Route path="recurring" element={<RecurringView/>} />
+      <Route path="detail/:id" element={<ScheduleDetailView />} />
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/schedule" replace />} />
     </Routes>
