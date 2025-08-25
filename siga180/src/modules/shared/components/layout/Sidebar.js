@@ -13,17 +13,23 @@ import {
   Activity
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../../../shared/hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth';
 
 const Sidebar = () => {
   const location = useLocation();
-  const { user, isTrainer, isAthlete } = useAuth();
+  const { user } = useAuth();
+
+  const isAthlete = user?.role === 'athlete';
+  const isTrainer = user?.role === 'trainer';
+  
+  // Debug para verificar
+  console.log('🎯 Sidebar - User Role:', user?.role, { isAthlete, isTrainer });
   
   // Menu items para TRAINER
   const trainerMenuItems = [
     { id: 'home', label: 'Home', icon: Home, path: '/' },
     { id: 'clients', label: 'Clients', icon: Users, path: '/athletes' },
- { id: 'workouts', label: 'Workouts', icon: Dumbbell, path: '/workouts' }, 
+    { id: 'workouts', label: 'Workouts', icon: Dumbbell, path: '/workouts' },
     { id: 'progress', label: 'Progress', icon: TrendingUp, path: '/analytics' },
     { id: 'nutrition', label: 'Nutrition', icon: Apple, path: '/nutrition' },
     { id: 'messages', label: 'Messages', icon: MessageSquare, path: '/messages' },
@@ -42,8 +48,7 @@ const Sidebar = () => {
     { id: 'messages', label: 'Messages', icon: MessageSquare, path: '/messages' },
     { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
   ];
-  
-  // Escolhe o menu baseado no role
+
   const menuItems = isAthlete ? athleteMenuItems : trainerMenuItems;
   
   return (
@@ -76,10 +81,10 @@ const Sidebar = () => {
           <Users className="h-5 w-5 text-gray-400" />
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-700">
-              {user?.name || 'Utilizador'}
+              {user?.name || user?.email || 'Utilizador'}
             </p>
             <p className="text-xs text-gray-500">
-              {isTrainer ? '20/25 Athletes' : 'Plano Premium'}
+              {isTrainer ? 'Personal Trainer' : 'Atleta'}
             </p>
           </div>
         </div>
