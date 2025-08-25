@@ -1,6 +1,5 @@
 // src/modules/trainer/pages/Athletes.js
 
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -10,7 +9,6 @@ import {
   MoreVertical, 
   Mail, 
   Phone,
-  Users,
   Calendar,
   TrendingUp,
   Clock,
@@ -18,6 +16,7 @@ import {
   XCircle,
   AlertCircle,
   User,
+  Users, // ADICIONADO - faltava este import
   Eye,
   Edit,
   Trash2,
