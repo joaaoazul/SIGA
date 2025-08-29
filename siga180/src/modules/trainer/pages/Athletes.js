@@ -3,26 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Plus, 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  Mail, 
-  Phone,
-  Calendar,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  User,
-  Users, // ADICIONADO - faltava este import
-  Eye,
-  Edit,
-  Trash2,
-  Loader2,
-  Copy,
-  Send
+  Plus, Search, Filter, MoreVertical, Mail, Phone, Calendar,
+  TrendingUp, Clock, CheckCircle, XCircle, AlertCircle, User,
+  Users, Eye, Edit, Trash2, Loader2, Copy, Send
 } from 'lucide-react';
 import { supabase } from '../../../services/supabase/supabaseClient';
 import { useAuth } from '../../shared/hooks/useAuth';
@@ -38,7 +21,6 @@ const Athletes = () => {
   const [showInvites, setShowInvites] = useState(false);
   const [copiedLink, setCopiedLink] = useState(null);
 
-  // Buscar atletas e convites do trainer
   useEffect(() => {
     if (user?.id) {
       fetchAthletesAndInvites();
@@ -49,31 +31,18 @@ const Athletes = () => {
     try {
       setLoading(true);
       
-      // 1. Buscar convites aceites (atletas ativos)
+      // 1. Buscar convites aceites
       const { data: acceptedInvites, error: invitesError } = await supabase
         .from('invites')
-        .select(`
-          *,
-          athlete:profiles!invites_accepted_by_fkey (
-            id,
-            email,
-            name,
-            phone,
-            avatar_url,
-            created_at,
-            setup_complete,
-            profile_complete,
-            birth_date,
-            height,
-            weight,
-            goals
-          )
-        `)
+        .select('*')
         .eq('trainer_id', user.id)
         .eq('status', 'accepted')
         .order('accepted_at', { ascending: false });
 
-      if (invitesError) throw invitesError;
+      if (invitesError) {
+        console.error('Erro ao buscar convites:', invitesError);
+        throw invitesError;
+      }
 
       // 2. Buscar convites pendentes
       const { data: pendingInvites, error: pendingError } = await supabase
@@ -83,45 +52,65 @@ const Athletes = () => {
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (pendingError) throw pendingError;
+      if (pendingError) {
+        console.error('Erro ao buscar convites pendentes:', pendingError);
+      }
 
-      // 3. Processar atletas ativos
-      const athletesList = acceptedInvites?.map(invite => {
-        const athlete = invite.athlete;
+      // 3. Buscar perfis dos atletas se houver convites aceites
+      let athletesList = [];
+      
+      if (acceptedInvites && acceptedInvites.length > 0) {
+        const athleteIds = acceptedInvites.map(invite => invite.accepted_by).filter(Boolean);
         
-        // Calcular idade se tiver data de nascimento
-        const age = athlete?.birth_date ? 
-          new Date().getFullYear() - new Date(athlete.birth_date).getFullYear() : null;
-        
-        // Determinar status baseado em atividade
-        const lastActivity = invite.accepted_at;
-        const daysSinceActivity = Math.floor(
-          (new Date() - new Date(lastActivity)) / (1000 * 60 * 60 * 24)
-        );
-        
-        let status = 'active';
-        if (daysSinceActivity > 30) status = 'inactive';
-        else if (daysSinceActivity > 14) status = 'warning';
+        if (athleteIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', athleteIds);
+          
+          if (profilesError) {
+            console.error('Erro ao buscar perfis:', profilesError);
+          }
+          
+          // Combinar dados dos convites com perfis
+          athletesList = acceptedInvites.map(invite => {
+            const profile = profilesData?.find(p => p.id === invite.accepted_by);
+            
+            // Calcular idade
+            const age = profile?.birth_date ? 
+              new Date().getFullYear() - new Date(profile.birth_date).getFullYear() : null;
+            
+            // Determinar status
+            const lastActivity = invite.accepted_at;
+            const daysSinceActivity = Math.floor(
+              (new Date() - new Date(lastActivity)) / (1000 * 60 * 60 * 24)
+            );
+            
+            let status = 'active';
+            if (daysSinceActivity > 30) status = 'inactive';
+            else if (daysSinceActivity > 14) status = 'warning';
 
-        return {
-          id: athlete?.id || invite.id,
-          name: athlete?.name || invite.athlete_name,
-          email: athlete?.email || invite.athlete_email,
-          phone: athlete?.phone || '',
-          avatar: athlete?.avatar_url,
-          age: age,
-          height: athlete?.height,
-          weight: athlete?.weight,
-          goals: athlete?.goals || [],
-          status: status,
-          setupComplete: athlete?.setup_complete || false,
-          profileComplete: athlete?.profile_complete || false,
-          joinedAt: invite.accepted_at,
-          lastActivity: lastActivity,
-          daysSinceActivity: daysSinceActivity,
-          inviteId: invite.id
-        };
-      }) || [];
+            return {
+              id: profile?.id || invite.accepted_by,
+              name: profile?.name || invite.athlete_name,
+              email: profile?.email || invite.athlete_email,
+              phone: profile?.phone || '',
+              avatar: profile?.avatar_url,
+              age: age,
+              height: profile?.height,
+              weight: profile?.weight,
+              goals: profile?.goals || [],
+              status: status,
+              setupComplete: profile?.setup_complete || false,
+              profileComplete: profile?.profile_complete || false,
+              joinedAt: invite.accepted_at,
+              lastActivity: lastActivity,
+              daysSinceActivity: daysSinceActivity,
+              inviteId: invite.id
+            };
+          });
+        }
+      }
 
       // 4. Processar convites pendentes
       const invitesList = pendingInvites?.map(invite => ({
@@ -194,12 +183,11 @@ const Athletes = () => {
     }
   };
 
-  // Remover atleta (soft delete - apenas desativa)
+  // Remover atleta
   const removeAthlete = async (athleteId) => {
     if (!window.confirm('Remover este atleta? Ele poderá ser reativado depois.')) return;
 
     try {
-      // Aqui poderias atualizar o status do atleta ou do convite
       toast.info('Funcionalidade em desenvolvimento');
     } catch (error) {
       console.error('Erro ao remover atleta:', error);
@@ -207,7 +195,7 @@ const Athletes = () => {
     }
   };
 
-  // Componente de Status Badge
+  // Status Badge
   const StatusBadge = ({ status }) => {
     const styles = {
       active: 'bg-green-100 text-green-800',
@@ -230,7 +218,6 @@ const Athletes = () => {
     );
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="p-6">
@@ -264,7 +251,6 @@ const Athletes = () => {
       {/* Filtros */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
-          {/* Pesquisa */}
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <input
@@ -276,7 +262,6 @@ const Athletes = () => {
             />
           </div>
 
-          {/* Filtro Status */}
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -288,7 +273,6 @@ const Athletes = () => {
             <option value="inactive">Inativos</option>
           </select>
 
-          {/* Toggle Convites */}
           <button
             onClick={() => setShowInvites(!showInvites)}
             className={`px-4 py-2 border rounded-lg transition-colors ${
@@ -398,7 +382,6 @@ const Athletes = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredAthletes.map(athlete => (
                   <tr key={athlete.id} className="hover:bg-gray-50">
-                    {/* Nome e Avatar */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
@@ -425,7 +408,6 @@ const Athletes = () => {
                       </div>
                     </td>
 
-                    {/* Contacto */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{athlete.email}</div>
                       {athlete.phone && (
@@ -433,12 +415,10 @@ const Athletes = () => {
                       )}
                     </td>
 
-                    {/* Status */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <StatusBadge status={athlete.status} />
                     </td>
 
-                    {/* Perfil Completo */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       {athlete.profileComplete ? (
                         <div className="flex items-center text-green-600">
@@ -453,7 +433,6 @@ const Athletes = () => {
                       )}
                     </td>
 
-                    {/* Última Atividade */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {athlete.daysSinceActivity === 0 
                         ? 'Hoje' 
@@ -462,7 +441,6 @@ const Athletes = () => {
                         : `Há ${athlete.daysSinceActivity} dias`}
                     </td>
 
-                    {/* Ações */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
                         <Link

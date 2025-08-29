@@ -61,8 +61,8 @@ class NotificationWorker {
           *,
           schedule:schedule_id(
             *,
-            athlete:athlete_id(full_name, email),
-            trainer:trainer_id(full_name, phone)
+            athlete:athlete_id(name, email),
+            trainer:trainer_id(name, phone)
           )
         `)
         .eq('status', 'pending')

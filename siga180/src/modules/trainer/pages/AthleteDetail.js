@@ -3,40 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
-  ArrowLeft,
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  Activity,
-  Target,
-  TrendingUp,
-  Clock,
-  Edit,
-  MoreVertical,
-  Dumbbell,
-  Heart,
-  Ruler,
-  Weight,
-  Award,
-  AlertCircle,
-  CheckCircle,
-  FileText,
-  BarChart3,
-  Settings,
-  Loader2,
-  X,
-  ChevronRight,
-  CalendarDays,
-  ClipboardList,
-  MessageSquare,
-  Plus,
-  History
+  ArrowLeft, User, Mail, Phone, Calendar, MapPin, Activity, Target,
+  TrendingUp, Clock, Edit, MoreVertical, Dumbbell, Heart, Ruler,
+  Weight, Award, AlertCircle, CheckCircle, FileText, BarChart3,
+  Loader2, ChevronRight, History, Printer, Download, Coffee, Moon,
+  Droplets, Apple, Brain, Stethoscope, Users, Music, Shield, Wine, Cigarette,
 } from 'lucide-react';
 import { supabase } from '../../../services/supabase/supabaseClient';
 import { useAuth } from '../../shared/hooks/useAuth';
 import toast from 'react-hot-toast';
+// Importar jsPDF para gerar PDF
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const AthleteDetails = () => {
   const { id } = useParams();
@@ -45,11 +23,8 @@ const AthleteDetails = () => {
   
   const [athlete, setAthlete] = useState(null);
   const [workoutPlans, setWorkoutPlans] = useState([]);
-  const [trainingHistory, setTrainingHistory] = useState([]);
-  const [measurements, setMeasurements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     if (id && user?.id) {
@@ -61,189 +36,265 @@ const AthleteDetails = () => {
     try {
       setLoading(true);
 
-      console.log('🔍 Buscando atleta com ID:', id);
-      console.log('👤 Trainer ID:', user.id);
-
-      // 1. Primeiro, buscar o perfil do atleta diretamente
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (profileError) {
-        console.error('❌ Erro ao buscar perfil:', profileError);
-        
-        // Se não encontrar o perfil, tentar buscar através do convite
-        const { data: inviteData, error: inviteError } = await supabase
-          .from('invites')
-          .select('*')
-          .eq('trainer_id', user.id)
-          .eq('accepted_by', id)
-          .eq('status', 'accepted')
-          .single();
-
-        if (inviteError) {
-          console.error('❌ Erro ao buscar convite:', inviteError);
-          toast.error('Atleta não encontrado');
-          navigate('/athletes');
-          return;
-        }
-
-        // Se encontrou o convite mas não o perfil, usar dados do convite
-        console.log('📧 Dados do convite encontrados:', inviteData);
-      }
-
-      console.log('✅ Perfil encontrado:', profileData);
-
-      // 2. Buscar o convite para verificar a relação trainer-atleta
-      const { data: inviteData, error: inviteCheckError } = await supabase
+      // Buscar convite
+      const { data: invite } = await supabase
         .from('invites')
         .select('*')
         .eq('trainer_id', user.id)
-        .eq('accepted_by', id)
+        .or(`accepted_by.eq.${id},id.eq.${id}`)
         .eq('status', 'accepted')
         .single();
 
-      if (inviteCheckError) {
-        console.error('⚠️ Aviso: Convite não encontrado, mas perfil existe');
-        // Continua mesmo sem o convite, pois o perfil existe
+      if (!invite) {
+        toast.error('Atleta não encontrado');
+        navigate('/athletes');
+        return;
       }
 
-      // 3. Processar dados do atleta
-      const athleteProfile = profileData || {};
-      const age = athleteProfile?.birth_date ? 
-        new Date().getFullYear() - new Date(athleteProfile.birth_date).getFullYear() : null;
+      // Buscar perfil completo
+      const athleteId = invite.accepted_by || id;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', athleteId)
+        .single();
 
-      const processedAthlete = {
-        id: athleteProfile.id || id,
-        name: athleteProfile.name || inviteData?.athlete_name || 'Nome não definido',
-        email: athleteProfile.email || inviteData?.athlete_email || '',
-        phone: athleteProfile.phone || '',
-        avatar: athleteProfile.avatar_url,
-        birthDate: athleteProfile.birth_date,
-        age: age,
-        height: athleteProfile.height,
-        weight: athleteProfile.weight,
-        goals: athleteProfile.goals || [],
-        medicalConditions: athleteProfile.medical_conditions || [],
-        emergencyContact: athleteProfile.emergency_contact,
-        emergencyPhone: athleteProfile.emergency_phone,
-        activityLevel: athleteProfile.activity_level,
-        trainingExperience: athleteProfile.training_experience,
-        preferences: athleteProfile.preferences || {},
-        availability: athleteProfile.availability || [],
-        setupComplete: athleteProfile.setup_complete || false,
-        profileComplete: athleteProfile.profile_complete || false,
-        joinedAt: inviteData?.accepted_at || athleteProfile.created_at,
-        createdAt: athleteProfile.created_at,
-        // Adicionar mais campos se existirem
-        medications: athleteProfile.medications,
-        allergies: athleteProfile.allergies,
-        emergencyRelationship: athleteProfile.emergency_relationship,
-        trainingFrequency: athleteProfile.training_frequency,
-        preferredTrainingTime: athleteProfile.preferred_training_time,
-        trainingLocation: athleteProfile.training_location,
-        equipmentAvailable: athleteProfile.equipment_available || [],
-        trainerNotes: athleteProfile.trainer_notes,
-        occupation: athleteProfile.occupation,
-        lifestyle: athleteProfile.lifestyle,
-        sleepHours: athleteProfile.sleep_hours,
-        stressLevel: athleteProfile.stress_level,
-        hydration: athleteProfile.hydration
-      };
+      if (profile) {
+        setAthlete({
+          ...profile,
+          id: athleteId,
+          joinedAt: invite.accepted_at
+        });
+      }
 
-      // 4. Buscar planos de treino do atleta
-      const { data: plans, error: plansError } = await supabase
+      // Buscar planos de treino
+      const { data: plans } = await supabase
         .from('workout_plans')
-        .select('*, workouts(*)')
-        .eq('athlete_id', id)
+        .select('*')
+        .eq('athlete_id', athleteId)
         .order('created_at', { ascending: false });
 
-      if (plansError) {
-        console.error('⚠️ Erro ao buscar planos:', plansError);
-      }
-
-      // 5. Buscar histórico de treinos (últimos 30 dias)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      const { data: history, error: historyError } = await supabase
-        .from('workout_logs')
-        .select(`
-          *,
-          workout:workouts(name, type)
-        `)
-        .eq('athlete_id', id)
-        .gte('completed_at', thirtyDaysAgo.toISOString())
-        .order('completed_at', { ascending: false });
-
-      if (historyError) {
-        console.error('⚠️ Erro ao buscar histórico:', historyError);
-      }
-
-      // 6. Buscar medidas/avaliações
-      const { data: measurementsData, error: measurementsError } = await supabase
-        .from('measurements')
-        .select('*')
-        .eq('athlete_id', id)
-        .order('measured_at', { ascending: false })
-        .limit(10);
-
-      if (measurementsError) {
-        console.error('⚠️ Erro ao buscar medidas:', measurementsError);
-      }
-
-      console.log('📊 Dados completos carregados:', {
-        athlete: processedAthlete,
-        plans: plans?.length || 0,
-        history: history?.length || 0,
-        measurements: measurementsData?.length || 0
-      });
-
-      setAthlete(processedAthlete);
       setWorkoutPlans(plans || []);
-      setTrainingHistory(history || []);
-      setMeasurements(measurementsData || []);
 
     } catch (error) {
-      console.error('Erro geral:', error);
-      toast.error('Erro ao carregar dados do atleta');
+      console.error('Erro:', error);
+      toast.error('Erro ao carregar dados');
     } finally {
       setLoading(false);
     }
   };
 
-  // Calcular estatísticas
-  const calculateStats = () => {
-    const stats = {
-      totalWorkouts: trainingHistory.length,
-      currentStreak: 0,
-      avgWorkoutDuration: 0,
-      completionRate: 0,
-      activePlans: workoutPlans.filter(p => p.status === 'active').length,
-      totalPlans: workoutPlans.length
-    };
-
-    if (trainingHistory.length > 0) {
-      // Calcular média de duração
-      const totalDuration = trainingHistory.reduce((acc, log) => acc + (log.duration || 0), 0);
-      stats.avgWorkoutDuration = Math.round(totalDuration / trainingHistory.length);
-
-      // Calcular taxa de conclusão (últimos 7 dias)
-      const lastWeek = new Date();
-      lastWeek.setDate(lastWeek.getDate() - 7);
-      const recentLogs = trainingHistory.filter(log => new Date(log.completed_at) >= lastWeek);
-      const completedLogs = recentLogs.filter(log => log.status === 'completed');
-      stats.completionRate = recentLogs.length > 0 
-        ? Math.round((completedLogs.length / recentLogs.length) * 100)
-        : 0;
-    }
-
-    return stats;
+  // Calcular idade
+  const calculateAge = (birthDate) => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
   };
 
-  // Componente de Tab
+  // Calcular IMC
+  const calculateBMI = () => {
+    if (athlete?.height && athlete?.weight) {
+      const h = athlete.height / 100;
+      return (athlete.weight / (h * h)).toFixed(1);
+    }
+    return null;
+  };
+
+  // Gerar PDF do Relatório
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Cabeçalho
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ANAMNESE DO ATLETA', pageWidth/2, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Data: ${new Date().toLocaleDateString('pt-PT')}`, pageWidth - 20, 20, { align: 'right' });
+    
+    let yPosition = 35;
+
+    // Dados Pessoais
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DADOS PESSOAIS', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    const personalData = [
+      ['Nome:', athlete.name || '-'],
+      ['Email:', athlete.email || '-'],
+      ['Telefone:', athlete.phone || '-'],
+      ['Data de Nascimento:', athlete.birth_date ? new Date(athlete.birth_date).toLocaleDateString('pt-PT') : '-'],
+      ['Idade:', calculateAge(athlete.birth_date) ? `${calculateAge(athlete.birth_date)} anos` : '-'],
+      ['Género:', athlete.gender === 'male' ? 'Masculino' : athlete.gender === 'female' ? 'Feminino' : athlete.gender || '-'],
+      ['Profissão:', athlete.occupation || '-']
+    ];
+
+    personalData.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(label, 20, yPosition);
+      doc.setFont('helvetica', 'normal');
+      doc.text(value, 60, yPosition);
+      yPosition += 7;
+    });
+
+    // Contacto de Emergência
+    yPosition += 5;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Contacto de Emergência', 20, yPosition);
+    yPosition += 7;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${athlete.emergency_contact || '-'} - ${athlete.emergency_phone || '-'} (${athlete.emergency_relationship || '-'})`, 20, yPosition);
+    yPosition += 10;
+
+    // Avaliação Física
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('AVALIAÇÃO FÍSICA', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    const physicalData = [
+      ['Altura:', `${athlete.height || '-'} cm`],
+      ['Peso:', `${athlete.weight || '-'} kg`],
+      ['IMC:', calculateBMI() || '-'],
+      ['% Gordura:', athlete.body_fat_percentage ? `${athlete.body_fat_percentage}%` : '-'],
+      ['Massa Muscular:', athlete.muscle_mass ? `${athlete.muscle_mass} kg` : '-']
+    ];
+
+    physicalData.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(label, 20, yPosition);
+      doc.setFont('helvetica', 'normal');
+      doc.text(value, 60, yPosition);
+      yPosition += 7;
+    });
+
+    // Objetivos
+    if (athlete.goals && athlete.goals.length > 0) {
+      yPosition += 5;
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('OBJETIVOS', 20, yPosition);
+      yPosition += 10;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      athlete.goals.forEach(goal => {
+        doc.text(`• ${goal}`, 25, yPosition);
+        yPosition += 7;
+      });
+    }
+
+    // Nova página se necessário
+    if (yPosition > 250) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    // Histórico de Saúde
+    yPosition += 5;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HISTÓRICO DE SAÚDE', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+
+    if (athlete.medical_conditions && athlete.medical_conditions.length > 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Condições Médicas:', 20, yPosition);
+      yPosition += 7;
+      doc.setFont('helvetica', 'normal');
+      athlete.medical_conditions.forEach(condition => {
+        doc.text(`• ${condition}`, 25, yPosition);
+        yPosition += 7;
+      });
+    }
+
+    if (athlete.medications) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Medicamentos:', 20, yPosition);
+      yPosition += 7;
+      doc.setFont('helvetica', 'normal');
+      doc.text(athlete.medications, 25, yPosition, { maxWidth: pageWidth - 45 });
+      yPosition += 10;
+    }
+
+    // Estilo de Vida
+    if (yPosition > 250) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    yPosition += 5;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ESTILO DE VIDA', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    const lifestyleData = [
+      ['Nível de Atividade:', athlete.activity_level || '-'],
+      ['Horas de Sono:', athlete.sleep_hours || '-'],
+      ['Qualidade do Sono:', athlete.sleep_quality || '-'],
+      ['Nível de Stress:', athlete.stress_level || '-'],
+      ['Hidratação:', athlete.hydration || '-']
+    ];
+
+    lifestyleData.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(label, 20, yPosition);
+      doc.setFont('helvetica', 'normal');
+      doc.text(value, 60, yPosition);
+      yPosition += 7;
+    });
+
+    // Notas do Trainer
+    if (athlete.trainer_notes) {
+      if (yPosition > 230) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      yPosition += 10;
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('OBSERVAÇÕES DO TRAINER', 20, yPosition);
+      yPosition += 10;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(athlete.trainer_notes, 20, yPosition, { maxWidth: pageWidth - 40 });
+    }
+
+    // Rodapé
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(`Página ${i} de ${pageCount}`, pageWidth/2, 290, { align: 'center' });
+    }
+
+    // Guardar PDF
+    doc.save(`anamnese_${athlete.name?.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success('PDF gerado com sucesso!');
+  };
+
+  // Tabs
   const TabButton = ({ id, label, icon: Icon, isActive, onClick }) => (
     <button
       onClick={() => onClick(id)}
@@ -258,14 +309,15 @@ const AthleteDetails = () => {
     </button>
   );
 
-  // Componente de Card de Informação
+  // Card de Informação
   const InfoCard = ({ icon: Icon, label, value, color = 'blue' }) => {
     const colors = {
       blue: 'bg-blue-50 text-blue-600',
       green: 'bg-green-50 text-green-600',
       yellow: 'bg-yellow-50 text-yellow-600',
       purple: 'bg-purple-50 text-purple-600',
-      red: 'bg-red-50 text-red-600'
+      red: 'bg-red-50 text-red-600',
+      orange: 'bg-orange-50 text-orange-600'
     };
 
     return (
@@ -307,7 +359,8 @@ const AthleteDetails = () => {
     );
   }
 
-  const stats = calculateStats();
+  const age = calculateAge(athlete.birth_date);
+  const bmi = calculateBMI();
 
   return (
     <div className="p-6">
@@ -324,6 +377,13 @@ const AthleteDetails = () => {
             <h1 className="text-2xl font-bold text-gray-900">Perfil do Atleta</h1>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={generatePDF}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Exportar PDF
+            </button>
             <Link
               to={`/athletes/${id}/edit`}
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -331,21 +391,17 @@ const AthleteDetails = () => {
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </Link>
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <MoreVertical className="h-5 w-5 text-gray-600" />
-            </button>
           </div>
         </div>
 
-        {/* Informações Principais */}
+        {/* Info Principal */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Avatar e Info Básica */}
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
-                {athlete.avatar ? (
+                {athlete.avatar_url ? (
                   <img 
-                    src={athlete.avatar} 
+                    src={athlete.avatar_url} 
                     alt={athlete.name}
                     className="h-20 w-20 rounded-full object-cover"
                   />
@@ -356,7 +412,7 @@ const AthleteDetails = () => {
                 )}
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">{athlete.name}</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{athlete.name || 'Nome não definido'}</h2>
                 <div className="mt-2 space-y-1">
                   <div className="flex items-center text-sm text-gray-600">
                     <Mail className="h-4 w-4 mr-2" />
@@ -368,32 +424,37 @@ const AthleteDetails = () => {
                       {athlete.phone}
                     </div>
                   )}
-                  {athlete.age && (
+                  {age && (
                     <div className="flex items-center text-sm text-gray-600">
                       <Calendar className="h-4 w-4 mr-2" />
-                      {athlete.age} anos
+                      {age} anos
+                    </div>
+                  )}
+                  {athlete.occupation && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      {athlete.occupation}
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Status do Perfil */}
             <div className="flex-1 flex items-center justify-end">
               <div className="text-right">
-                {athlete.profileComplete ? (
+                {athlete.anamnese_completed_at ? (
                   <div className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
                     <CheckCircle className="h-4 w-4 mr-1" />
-                    Perfil Completo
+                    Anamnese Completa
                   </div>
                 ) : (
                   <div className="inline-flex items-center px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    Perfil Incompleto
+                    Anamnese Incompleta
                   </div>
                 )}
                 <p className="text-xs text-gray-500 mt-2">
-                  Membro desde {new Date(athlete.joinedAt).toLocaleDateString('pt-PT')}
+                  Membro desde {new Date(athlete.joinedAt || athlete.created_at).toLocaleDateString('pt-PT')}
                 </p>
               </div>
             </div>
@@ -401,7 +462,7 @@ const AthleteDetails = () => {
         </div>
       </div>
 
-      {/* Tabs de Navegação */}
+      {/* Tabs */}
       <div className="bg-white rounded-lg shadow-sm p-2 mb-6">
         <div className="flex flex-wrap gap-2">
           <TabButton 
@@ -412,31 +473,38 @@ const AthleteDetails = () => {
             onClick={setActiveTab}
           />
           <TabButton 
-            id="profile" 
-            label="Perfil Completo" 
-            icon={User} 
-            isActive={activeTab === 'profile'}
+            id="anamnese" 
+            label="Anamnese" 
+            icon={FileText} 
+            isActive={activeTab === 'anamnese'}
             onClick={setActiveTab}
           />
           <TabButton 
-            id="plans" 
-            label="Planos de Treino" 
-            icon={ClipboardList} 
-            isActive={activeTab === 'plans'}
+            id="health" 
+            label="Saúde" 
+            icon={Heart} 
+            isActive={activeTab === 'health'}
             onClick={setActiveTab}
           />
           <TabButton 
-            id="history" 
-            label="Histórico" 
-            icon={History} 
-            isActive={activeTab === 'history'}
+            id="lifestyle" 
+            label="Estilo de Vida" 
+            icon={Coffee} 
+            isActive={activeTab === 'lifestyle'}
             onClick={setActiveTab}
           />
           <TabButton 
-            id="measurements" 
-            label="Avaliações" 
-            icon={Ruler} 
-            isActive={activeTab === 'measurements'}
+            id="nutrition" 
+            label="Nutrição" 
+            icon={Apple} 
+            isActive={activeTab === 'nutrition'}
+            onClick={setActiveTab}
+          />
+          <TabButton 
+            id="training" 
+            label="Treino" 
+            icon={Dumbbell} 
+            isActive={activeTab === 'training'}
             onClick={setActiveTab}
           />
         </div>
@@ -447,31 +515,31 @@ const AthleteDetails = () => {
         {/* Tab: Visão Geral */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Estatísticas Rápidas */}
+            {/* Cards de Estatísticas */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <InfoCard 
-                icon={Dumbbell} 
-                label="Treinos (30 dias)" 
-                value={stats.totalWorkouts}
+                icon={Ruler} 
+                label="Altura" 
+                value={athlete.height ? `${athlete.height} cm` : '-'}
                 color="blue"
               />
               <InfoCard 
-                icon={Clock} 
-                label="Duração Média" 
-                value={`${stats.avgWorkoutDuration} min`}
+                icon={Weight} 
+                label="Peso" 
+                value={athlete.weight ? `${athlete.weight} kg` : '-'}
                 color="green"
               />
               <InfoCard 
-                icon={TrendingUp} 
-                label="Taxa de Conclusão" 
-                value={`${stats.completionRate}%`}
+                icon={Activity} 
+                label="IMC" 
+                value={bmi || '-'}
                 color="yellow"
               />
               <InfoCard 
-                icon={FileText} 
-                label="Planos Ativos" 
-                value={`${stats.activePlans}/${stats.totalPlans}`}
-                color="purple"
+                icon={Heart} 
+                label="% Gordura" 
+                value={athlete.body_fat_percentage ? `${athlete.body_fat_percentage}%` : '-'}
+                color="red"
               />
             </div>
 
@@ -479,49 +547,51 @@ const AthleteDetails = () => {
             {athlete.goals && athlete.goals.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Target className="h-5 w-5 mr-2 text-blue-600" />
+                  <Target className="h-5 w-5 mr-2 text-purple-600" />
                   Objetivos
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {athlete.goals.map((goal, index) => (
                     <span 
                       key={index}
-                      className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
+                      className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm"
                     >
                       {goal}
                     </span>
                   ))}
                 </div>
+                
+                {athlete.why_training && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Motivação para treinar:</p>
+                    <p className="text-sm text-gray-600">{athlete.why_training}</p>
+                  </div>
+                )}
+                
+                {athlete.expectations && (
+                  <div className="mt-3 p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Expectativas:</p>
+                    <p className="text-sm text-gray-600">{athlete.expectations}</p>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Últimos Treinos */}
-            {trainingHistory.length > 0 && (
+            {/* Desafios */}
+            {athlete.biggest_challenges && athlete.biggest_challenges.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Activity className="h-5 w-5 mr-2 text-green-600" />
-                  Últimos Treinos
+                  <AlertCircle className="h-5 w-5 mr-2 text-orange-600" />
+                  Maiores Desafios
                 </h3>
-                <div className="space-y-3">
-                  {trainingHistory.slice(0, 5).map((log) => (
-                    <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {log.workout?.name || 'Treino'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {new Date(log.completed_at).toLocaleDateString('pt-PT')} • 
-                          {log.duration ? ` ${log.duration} min` : ' Duração não registada'}
-                        </p>
-                      </div>
-                      <div>
-                        {log.status === 'completed' ? (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <Clock className="h-5 w-5 text-yellow-600" />
-                        )}
-                      </div>
-                    </div>
+                <div className="flex flex-wrap gap-2">
+                  {athlete.biggest_challenges.map((challenge, index) => (
+                    <span 
+                      key={index}
+                      className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-sm"
+                    >
+                      {challenge}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -529,451 +599,413 @@ const AthleteDetails = () => {
           </div>
         )}
 
-        {/* Tab: Perfil Completo */}
-        {activeTab === 'profile' && (
+        {/* Tab: Anamnese Completa */}
+        {activeTab === 'anamnese' && (
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="space-y-6">
-              {/* Informações Físicas */}
+              {/* Dados Pessoais */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações Físicas</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm text-gray-600">Altura</label>
-                    <p className="text-gray-900 font-medium">
-                      {athlete.height ? `${athlete.height} cm` : 'Não informado'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">Peso</label>
-                    <p className="text-gray-900 font-medium">
-                      {athlete.weight ? `${athlete.weight} kg` : 'Não informado'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">IMC</label>
-                    <p className="text-gray-900 font-medium">
-                      {athlete.height && athlete.weight 
-                        ? (athlete.weight / Math.pow(athlete.height / 100, 2)).toFixed(1)
-                        : 'N/A'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Nível de Atividade */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Experiência e Nível</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <User className="h-5 w-5 mr-2 text-blue-600" />
+                  Dados Pessoais
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm text-gray-600">Nível de Atividade</label>
-                    <p className="text-gray-900 font-medium capitalize">
-                      {athlete.activityLevel || 'Não informado'}
+                    <label className="text-sm text-gray-600">Nome Completo</label>
+                    <p className="text-gray-900 font-medium">{athlete.name || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Email</label>
+                    <p className="text-gray-900 font-medium">{athlete.email || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Telefone</label>
+                    <p className="text-gray-900 font-medium">{athlete.phone || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Data de Nascimento</label>
+                    <p className="text-gray-900 font-medium">
+                      {athlete.birth_date ? new Date(athlete.birth_date).toLocaleDateString('pt-PT') : '-'}
+                      {age && ` (${age} anos)`}
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">Estilo de Vida</label>
+                    <label className="text-sm text-gray-600">Género</label>
                     <p className="text-gray-900 font-medium">
-                      {athlete.lifestyle ? 
-                        athlete.lifestyle === 'sedentary' ? 'Sedentário' :
-                        athlete.lifestyle === 'moderate' ? 'Moderado' :
-                        athlete.lifestyle === 'active' ? 'Ativo' :
-                        athlete.lifestyle === 'very_active' ? 'Muito Ativo' :
-                        athlete.lifestyle
-                        : 'Não informado'}
+                      {athlete.gender === 'male' ? 'Masculino' : 
+                       athlete.gender === 'female' ? 'Feminino' : 
+                       athlete.gender || '-'}
                     </p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Profissão</label>
+                    <p className="text-gray-900 font-medium">{athlete.occupation || '-'}</p>
                   </div>
                 </div>
               </div>
-
-              {/* Hábitos de Vida */}
-              {(athlete.sleepHours || athlete.stressLevel || athlete.hydration) && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Hábitos de Vida</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {athlete.sleepHours && (
-                      <div>
-                        <label className="text-sm text-gray-600">Horas de Sono</label>
-                        <p className="text-gray-900 font-medium">{athlete.sleepHours}</p>
-                      </div>
-                    )}
-                    {athlete.stressLevel && (
-                      <div>
-                        <label className="text-sm text-gray-600">Nível de Stress</label>
-                        <p className="text-gray-900 font-medium capitalize">
-                          {athlete.stressLevel === 'low' ? 'Baixo' :
-                           athlete.stressLevel === 'moderate' ? 'Moderado' :
-                           athlete.stressLevel === 'high' ? 'Alto' :
-                           athlete.stressLevel === 'very_high' ? 'Muito Alto' :
-                           athlete.stressLevel}
-                        </p>
-                      </div>
-                    )}
-                    {athlete.hydration && (
-                      <div>
-                        <label className="text-sm text-gray-600">Hidratação Diária</label>
-                        <p className="text-gray-900 font-medium">{athlete.hydration}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Condições Médicas */}
-              {athlete.medicalConditions && athlete.medicalConditions.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Condições Médicas</h3>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <ul className="space-y-2">
-                      {athlete.medicalConditions.map((condition, index) => (
-                        <li key={index} className="flex items-start">
-                          <AlertCircle className="h-4 w-4 text-yellow-600 mr-2 mt-0.5" />
-                          <span className="text-gray-900">{condition}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
 
               {/* Contacto de Emergência */}
-              {(athlete.emergencyContact || athlete.emergencyPhone) && (
+              {(athlete.emergency_contact || athlete.emergency_phone) && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Contacto de Emergência</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {athlete.emergencyContact && (
-                      <div>
-                        <label className="text-sm text-gray-600">Nome</label>
-                        <p className="text-gray-900 font-medium">
-                          {athlete.emergencyContact}
-                        </p>
-                      </div>
-                    )}
-                    {athlete.emergencyPhone && (
-                      <div>
-                        <label className="text-sm text-gray-600">Telefone</label>
-                        <p className="text-gray-900 font-medium">
-                          {athlete.emergencyPhone}
-                        </p>
-                      </div>
-                    )}
-                    {athlete.emergencyRelationship && (
-                      <div>
-                        <label className="text-sm text-gray-600">Relação</label>
-                        <p className="text-gray-900 font-medium">
-                          {athlete.emergencyRelationship}
-                        </p>
-                      </div>
-                    )}
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <Shield className="h-5 w-5 mr-2 text-red-600" />
+                    Contacto de Emergência
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-red-50 rounded-lg">
+                    <div>
+                      <label className="text-sm text-gray-600">Nome</label>
+                      <p className="text-gray-900 font-medium">{athlete.emergency_contact || '-'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Telefone</label>
+                      <p className="text-gray-900 font-medium">{athlete.emergency_phone || '-'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Relação</label>
+                      <p className="text-gray-900 font-medium">{athlete.emergency_relationship || '-'}</p>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Disponibilidade e Preferências */}
-              <div className="space-y-4">
-                {/* Disponibilidade */}
-                {athlete.availability && athlete.availability.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Disponibilidade para Treinos</h3>
+              {/* Avaliação Física */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Ruler className="h-5 w-5 mr-2 text-green-600" />
+                  Avaliação Física
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <label className="text-sm text-gray-600">Altura</label>
+                    <p className="text-xl font-semibold text-gray-900">
+                      {athlete.height ? `${athlete.height} cm` : '-'}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <label className="text-sm text-gray-600">Peso</label>
+                    <p className="text-xl font-semibold text-gray-900">
+                      {athlete.weight ? `${athlete.weight} kg` : '-'}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <label className="text-sm text-gray-600">IMC</label>
+                    <p className="text-xl font-semibold text-gray-900">{bmi || '-'}</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <label className="text-sm text-gray-600">% Gordura</label>
+                    <p className="text-xl font-semibold text-gray-900">
+                      {athlete.body_fat_percentage ? `${athlete.body_fat_percentage}%` : '-'}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <label className="text-sm text-gray-600">Massa Muscular</label>
+                    <p className="text-xl font-semibold text-gray-900">
+                      {athlete.muscle_mass ? `${athlete.muscle_mass} kg` : '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Saúde */}
+        {activeTab === 'health' && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="space-y-6">
+              {/* Condições Médicas */}
+              {athlete.medical_conditions && athlete.medical_conditions.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Condições Médicas</h3>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <div className="flex flex-wrap gap-2">
-                      {athlete.availability.map((day, index) => (
-                        <span 
-                          key={index}
-                          className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm"
-                        >
-                          {day}
+                      {athlete.medical_conditions.map((condition, index) => (
+                        <span key={index} className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                          {condition}
                         </span>
                       ))}
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Preferências de Treino */}
-                {(athlete.preferredTrainingTime || athlete.trainingLocation || athlete.trainingFrequency) && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Preferências de Treino</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {athlete.preferredTrainingTime && (
-                        <div>
-                          <label className="text-sm text-gray-600">Horário Preferido</label>
-                          <p className="text-gray-900 font-medium">
-                            {athlete.preferredTrainingTime === 'morning' ? 'Manhã' :
-                             athlete.preferredTrainingTime === 'afternoon' ? 'Tarde' :
-                             athlete.preferredTrainingTime === 'evening' ? 'Noite' :
-                             athlete.preferredTrainingTime === 'flexible' ? 'Flexível' :
-                             athlete.preferredTrainingTime}
-                          </p>
-                        </div>
-                      )}
-                      {athlete.trainingLocation && (
-                        <div>
-                          <label className="text-sm text-gray-600">Local de Treino</label>
-                          <p className="text-gray-900 font-medium">
-                            {athlete.trainingLocation === 'gym' ? 'Ginásio' :
-                             athlete.trainingLocation === 'home' ? 'Casa' :
-                             athlete.trainingLocation === 'outdoor' ? 'Ar Livre' :
-                             athlete.trainingLocation === 'studio' ? 'Estúdio/Box' :
-                             athlete.trainingLocation === 'mixed' ? 'Vários Locais' :
-                             athlete.trainingLocation}
-                          </p>
-                        </div>
-                      )}
-                      {athlete.trainingFrequency && (
-                        <div>
-                          <label className="text-sm text-gray-600">Frequência Desejada</label>
-                          <p className="text-gray-900 font-medium">
-                            {athlete.trainingFrequency === '7' ? 'Todos os dias' :
-                             `${athlete.trainingFrequency} vezes por semana`}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Equipamentos Disponíveis */}
-                {athlete.equipmentAvailable && athlete.equipmentAvailable.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Equipamentos Disponíveis</h3>
+              {/* Condições Crônicas */}
+              {athlete.chronic_conditions && athlete.chronic_conditions.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Condições Crônicas</h3>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <div className="flex flex-wrap gap-2">
-                      {athlete.equipmentAvailable.map((equipment, index) => (
-                        <span 
-                          key={index}
-                          className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
-                        >
-                          {equipment}
+                      {athlete.chronic_conditions.map((condition, index) => (
+                        <span key={index} className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+                          {condition}
                         </span>
                       ))}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Medicamentos e Alergias */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {athlete.medications && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Medicamentos</h4>
+                    <p className="text-gray-600 p-4 bg-gray-50 rounded-lg">{athlete.medications}</p>
+                  </div>
+                )}
+                
+                {athlete.allergies && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Alergias</h4>
+                    <p className="text-gray-600 p-4 bg-gray-50 rounded-lg">{athlete.allergies}</p>
                   </div>
                 )}
               </div>
 
-              {/* Notas do Trainer */}
-              {athlete.trainerNotes && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Notas do Trainer</h3>
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <p className="text-gray-700 whitespace-pre-wrap">{athlete.trainerNotes}</p>
+              {/* Histórico */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {athlete.injuries_history && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Histórico de Lesões</h4>
+                    <p className="text-gray-600 p-4 bg-gray-50 rounded-lg">{athlete.injuries_history}</p>
                   </div>
+                )}
+                
+                {athlete.surgeries_history && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Histórico de Cirurgias</h4>
+                    <p className="text-gray-600 p-4 bg-gray-50 rounded-lg">{athlete.surgeries_history}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Estilo de Vida */}
+        {activeTab === 'lifestyle' && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <Activity className="h-5 w-5 text-blue-600 mr-2" />
+                  <h4 className="font-medium text-gray-900">Nível de Atividade</h4>
+                </div>
+                <p className="text-gray-700">
+                  {athlete.activity_level === 'sedentary' ? 'Sedentário' :
+                   athlete.activity_level === 'lightly_active' ? 'Levemente Ativo' :
+                   athlete.activity_level === 'moderately_active' ? 'Moderadamente Ativo' :
+                   athlete.activity_level === 'very_active' ? 'Muito Ativo' :
+                   athlete.activity_level === 'extra_active' ? 'Extra Ativo' :
+                   athlete.activity_level || '-'}
+                </p>
+              </div>
+
+              <div className="p-4 bg-indigo-50 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <Moon className="h-5 w-5 text-indigo-600 mr-2" />
+                  <h4 className="font-medium text-gray-900">Sono</h4>
+                </div>
+                <p className="text-gray-700">
+                  {athlete.sleep_hours || '-'} 
+                  {athlete.sleep_quality && ` • ${athlete.sleep_quality === 'poor' ? 'Má qualidade' :
+                                                   athlete.sleep_quality === 'fair' ? 'Razoável' :
+                                                   athlete.sleep_quality === 'good' ? 'Boa' :
+                                                   athlete.sleep_quality === 'excellent' ? 'Excelente' :
+                                                   athlete.sleep_quality}`}
+                </p>
+              </div>
+
+              <div className="p-4 bg-cyan-50 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <Droplets className="h-5 w-5 text-cyan-600 mr-2" />
+                  <h4 className="font-medium text-gray-900">Hidratação</h4>
+                </div>
+                <p className="text-gray-700">{athlete.hydration || '-'}</p>
+              </div>
+
+              <div className="p-4 bg-orange-50 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <Brain className="h-5 w-5 text-orange-600 mr-2" />
+                  <h4 className="font-medium text-gray-900">Nível de Stress</h4>
+                </div>
+                <p className="text-gray-700">
+                  {athlete.stress_level === 'very_low' ? 'Muito Baixo' :
+                   athlete.stress_level === 'low' ? 'Baixo' :
+                   athlete.stress_level === 'moderate' ? 'Moderado' :
+                   athlete.stress_level === 'high' ? 'Alto' :
+                   athlete.stress_level === 'very_high' ? 'Muito Alto' :
+                   athlete.stress_level || '-'}
+                </p>
+              </div>
+
+              {athlete.alcohol_consumption && (
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <Wine className="h-5 w-5 text-purple-600 mr-2" />
+                    <h4 className="font-medium text-gray-900">Álcool</h4>
+                  </div>
+                  <p className="text-gray-700">
+                    {athlete.alcohol_consumption === 'never' ? 'Nunca' :
+                     athlete.alcohol_consumption === 'rarely' ? 'Raramente' :
+                     athlete.alcohol_consumption === 'occasional' ? 'Ocasional' :
+                     athlete.alcohol_consumption === 'moderate' ? 'Moderado' :
+                     athlete.alcohol_consumption === 'frequent' ? 'Frequente' :
+                     athlete.alcohol_consumption}
+                  </p>
+                </div>
+              )}
+
+              {athlete.smoking_status && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <Cigarette className="h-5 w-5 text-gray-600 mr-2" />
+                    <h4 className="font-medium text-gray-900">Tabagismo</h4>
+                  </div>
+                  <p className="text-gray-700">
+                    {athlete.smoking_status === 'never' ? 'Nunca fumou' :
+                     athlete.smoking_status === 'former' ? 'Ex-fumador' :
+                     athlete.smoking_status === 'occasional' ? 'Fumador ocasional' :
+                     athlete.smoking_status === 'regular' ? 'Fumador regular' :
+                     athlete.smoking_status}
+                  </p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Tab: Planos de Treino */}
-        {activeTab === 'plans' && (
-          <div className="space-y-4">
-            {workoutPlans.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Sem planos de treino
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Este atleta ainda não tem planos de treino atribuídos
-                </p>
-                <Link
-                  to={`/workout-plans/new?athlete=${id}`}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Criar Plano de Treino
-                </Link>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Planos de Treino</h3>
-                  <Link
-                    to={`/workout-plans/new?athlete=${id}`}
-                    className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Novo Plano
-                  </Link>
-                </div>
-                {workoutPlans.map((plan) => (
-                  <div key={plan.id} className="bg-white rounded-lg shadow-sm p-6">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">{plan.name}</h4>
-                        <p className="text-sm text-gray-600 mt-1">{plan.description}</p>
-                        <div className="flex items-center gap-4 mt-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            plan.status === 'active' 
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {plan.status === 'active' ? 'Ativo' : 'Inativo'}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            {plan.workouts?.length || 0} treinos
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            Criado em {new Date(plan.created_at).toLocaleDateString('pt-PT')}
-                          </span>
-                        </div>
-                      </div>
-                      <Link
-                        to={`/workout-plans/${plan.id}`}
-                        className="text-blue-600 hover:text-blue-700"
-                      >
-                        <ChevronRight className="h-5 w-5" />
-                      </Link>
-                    </div>
+        {/* Tab: Nutrição */}
+        {activeTab === 'nutrition' && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="space-y-6">
+              {/* Restrições Alimentares */}
+              {athlete.dietary_restrictions && athlete.dietary_restrictions.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Restrições Alimentares</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {athlete.dietary_restrictions.map((restriction, index) => (
+                      <span key={index} className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">
+                        {restriction}
+                      </span>
+                    ))}
                   </div>
-                ))}
-              </>
-            )}
+                </div>
+              )}
+
+              {/* Suplementos */}
+              {athlete.supplements && athlete.supplements.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Suplementação</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {athlete.supplements.map((supplement, index) => (
+                      <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                        {supplement}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Informações Nutricionais */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {athlete.meal_frequency && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Frequência de Refeições</h4>
+                    <p className="text-gray-600">{athlete.meal_frequency}</p>
+                  </div>
+                )}
+                
+                {athlete.eating_habits && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Hábitos Alimentares</h4>
+                    <p className="text-gray-600">{athlete.eating_habits}</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Tab: Histórico */}
-        {activeTab === 'history' && (
+        {/* Tab: Treino */}
+        {activeTab === 'training' && (
           <div className="bg-white rounded-lg shadow-sm p-6">
-            {trainingHistory.length === 0 ? (
-              <div className="text-center py-12">
-                <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Sem histórico de treinos
-                </h3>
-                <p className="text-gray-600">
-                  Os treinos realizados aparecerão aqui
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Histórico de Treinos (Últimos 30 dias)
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Data
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Treino
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Duração
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Notas
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {trainingHistory.map((log) => (
-                        <tr key={log.id}>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {new Date(log.completed_at).toLocaleDateString('pt-PT')}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {log.workout?.name || 'Treino'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {log.duration ? `${log.duration} min` : '-'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              log.status === 'completed'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {log.status === 'completed' ? 'Completo' : 'Parcial'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {log.notes || '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <div className="space-y-6">
+              {/* Experiência */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Experiência em Treino</h4>
+                  <p className="text-gray-600">
+                    {athlete.training_experience === 'none' ? 'Sem experiência' :
+                     athlete.training_experience === 'beginner' ? 'Iniciante' :
+                     athlete.training_experience === 'intermediate' ? 'Intermediário' :
+                     athlete.training_experience === 'advanced' ? 'Avançado' :
+                     athlete.training_experience === 'expert' ? 'Expert' :
+                     athlete.training_experience || '-'}
+                  </p>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Frequência Desejada</h4>
+                  <p className="text-gray-600">{athlete.training_frequency || '-'}</p>
                 </div>
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Tab: Avaliações */}
-        {activeTab === 'measurements' && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            {measurements.length === 0 ? (
-              <div className="text-center py-12">
-                <Ruler className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Sem avaliações registadas
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Registe avaliações para acompanhar o progresso
-                </p>
-                <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Avaliação
-                </button>
-              </div>
-            ) : (
+              {/* Preferências */}
               <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Avaliações Físicas</h3>
-                  <button className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nova Avaliação
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Data
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Peso (kg)
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          % Gordura
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Massa Muscular
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          IMC
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {measurements.map((measurement) => (
-                        <tr key={measurement.id}>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {new Date(measurement.measured_at).toLocaleDateString('pt-PT')}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {measurement.weight || '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {measurement.body_fat ? `${measurement.body_fat}%` : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {measurement.muscle_mass ? `${measurement.muscle_mass} kg` : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {measurement.bmi || '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <h4 className="font-medium text-gray-900 mb-4">Preferências de Treino</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Horário Preferido</p>
+                    <p className="font-medium text-gray-900">
+                      {athlete.preferred_training_time || '-'}
+                    </p>
+                  </div>
+                  
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Local</p>
+                    <p className="font-medium text-gray-900">
+                      {athlete.training_location || '-'}
+                    </p>
+                  </div>
+                  
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Música</p>
+                    <p className="font-medium text-gray-900">
+                      {athlete.music_preference ? 'Sim' : 'Não'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            )}
+
+              {/* Disponibilidade */}
+              {athlete.availability && athlete.availability.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Disponibilidade</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {athlete.availability.map((day, index) => (
+                      <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        {day}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Equipamentos */}
+              {athlete.equipment_available && athlete.equipment_available.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Equipamentos Disponíveis</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {athlete.equipment_available.map((equipment, index) => (
+                      <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                        {equipment}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -1,4 +1,3 @@
-
 // siga180/src/modules/shared/hooks/useAuth.js
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../../../services/supabase/supabaseClient';
@@ -29,16 +28,24 @@ export const AuthProvider = ({ children }) => {
         console.log('🔄 Auth State Changed:', event, session?.user?.email);
         
         if (event === 'SIGNED_IN' && session) {
-          // Buscar role do perfil quando fizer login
-          const { data: profile } = await supabase
+          // Buscar role do perfil quando fizer login - QUERY MAIS ROBUSTA
+          const { data: profiles } = await supabase
             .from('profiles')
-            .select('role, name')
-            .eq('id', session.user.id)
-            .single();
+            .select('*')
+            .eq('id', session.user.id);
+          
+          const profile = profiles?.[0];
+          console.log('📊 Profile data on SIGNED_IN:', profile);
+          
+          // Fallback para trainer se for o teu email
+          let finalRole = profile?.role;
+          if (!finalRole && session.user.email === 'joaoazul74@gmail.com') {
+            finalRole = 'trainer';
+          }
           
           const userWithRole = {
             ...session.user,
-            role: profile?.role || 'athlete',
+            role: finalRole || 'athlete',
             name: profile?.name || session.user.email
           };
           
@@ -53,15 +60,21 @@ export const AuthProvider = ({ children }) => {
           
         } else if (event === 'USER_UPDATED' && session) {
           // Atualizar dados do user
-          const { data: profile } = await supabase
+          const { data: profiles } = await supabase
             .from('profiles')
-            .select('role, name')
-            .eq('id', session.user.id)
-            .single();
+            .select('*')
+            .eq('id', session.user.id);
+          
+          const profile = profiles?.[0];
+          
+          let finalRole = profile?.role;
+          if (!finalRole && session.user.email === 'joaoazul74@gmail.com') {
+            finalRole = 'trainer';
+          }
           
           const updatedUser = {
             ...session.user,
-            role: profile?.role || 'athlete',
+            role: finalRole || 'athlete',
             name: profile?.name || session.user.email
           };
           
@@ -87,20 +100,30 @@ export const AuthProvider = ({ children }) => {
       if (user) {
         console.log('👤 User found:', user.email);
         
-        // Buscar role do perfil
-        const { data: profile, error: profileError } = await supabase
+        // Query mais robusta sem .single() para evitar erros
+        const { data: profiles, error: profileError } = await supabase
           .from('profiles')
-          .select('role, name')
-          .eq('id', user.id)
-          .single();
+          .select('*')
+          .eq('id', user.id);
         
         if (profileError) {
           console.error('❌ Error fetching profile:', profileError);
         }
         
+        const profile = profiles?.[0];
+        console.log('📊 Profile fetched:', profile);
+        console.log('📊 Profile role:', profile?.role);
+        
+        // Fallback específico para ti
+        let finalRole = profile?.role;
+        if (!finalRole && user.email === 'joaoazul74@gmail.com') {
+          console.log('⚠️ Using trainer fallback for joaoazul74@gmail.com');
+          finalRole = 'trainer';
+        }
+        
         const userWithRole = {
           ...user,
-          role: profile?.role || 'athlete',
+          role: finalRole || 'athlete',
           name: profile?.name || user.email
         };
         
@@ -136,20 +159,28 @@ export const AuthProvider = ({ children }) => {
       if (data.user) {
         console.log('✅ Login successful:', data.user.email);
         
-        // Buscar role após login
-        const { data: profile, error: profileError } = await supabase
+        // Buscar role após login - query mais robusta
+        const { data: profiles, error: profileError } = await supabase
           .from('profiles')
-          .select('role, name')
-          .eq('id', data.user.id)
-          .single();
+          .select('*')
+          .eq('id', data.user.id);
         
         if (profileError) {
           console.error('⚠️ Profile fetch error:', profileError);
         }
         
+        const profile = profiles?.[0];
+        console.log('📊 Profile on signIn:', profile);
+        
+        // Fallback para trainer
+        let finalRole = profile?.role;
+        if (!finalRole && data.user.email === 'joaoazul74@gmail.com') {
+          finalRole = 'trainer';
+        }
+        
         const userWithRole = {
           ...data.user,
-          role: profile?.role || 'athlete',
+          role: finalRole || 'athlete',
           name: profile?.name || data.user.email
         };
         
