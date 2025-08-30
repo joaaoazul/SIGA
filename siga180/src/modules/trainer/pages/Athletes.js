@@ -30,58 +30,68 @@ const Athletes = () => {
   const fetchAthletesAndInvites = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Buscando atletas para trainer:', user.id);
       
-      // 1. Buscar convites aceites
-      const { data: acceptedInvites, error: invitesError } = await supabase
-        .from('invites')
-        .select('*')
-        .eq('trainer_id', user.id)
-        .eq('status', 'accepted')
-        .order('accepted_at', { ascending: false });
+      // 1. BUSCAR ATLETAS DA TABELA ATHLETES (LÓGICA CORRIGIDA)
+      const { data: athletesData, error: athletesError } = await supabase
+        .from('athletes')
+        .select(`
+          id,
+          profile_id,
+          trainer_id,
+          age,
+          height,
+          weight,
+          goal,
+          activity_level,
+          created_at,
+          updated_at
+        `)
+        .eq('trainer_id', user.id);
 
-      if (invitesError) {
-        console.error('Erro ao buscar convites:', invitesError);
-        throw invitesError;
+      if (athletesError) {
+        console.error('❌ Erro ao buscar atletas:', athletesError);
+        throw athletesError;
       }
 
-      // 2. Buscar convites pendentes
-      const { data: pendingInvites, error: pendingError } = await supabase
-        .from('invites')
-        .select('*')
-        .eq('trainer_id', user.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
-      if (pendingError) {
-        console.error('Erro ao buscar convites pendentes:', pendingError);
-      }
-
-      // 3. Buscar perfis dos atletas se houver convites aceites
+      // 2. BUSCAR PERFIS DOS ATLETAS
       let athletesList = [];
       
-      if (acceptedInvites && acceptedInvites.length > 0) {
-        const athleteIds = acceptedInvites.map(invite => invite.accepted_by).filter(Boolean);
+      if (athletesData && athletesData.length > 0) {
+        const profileIds = athletesData.map(a => a.profile_id).filter(Boolean);
         
-        if (athleteIds.length > 0) {
+        if (profileIds.length > 0) {
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
-            .select('*')
-            .in('id', athleteIds);
+            .select(`
+              id,
+              email,
+              name,
+              phone,
+              avatar_url,
+              birth_date,
+              gender,
+              goals,
+              medical_conditions,
+              setup_complete,
+              profile_complete,
+              created_at
+            `)
+            .in('id', profileIds);
           
           if (profilesError) {
-            console.error('Erro ao buscar perfis:', profilesError);
+            console.error('❌ Erro ao buscar perfis:', profilesError);
           }
           
-          // Combinar dados dos convites com perfis
-          athletesList = acceptedInvites.map(invite => {
-            const profile = profilesData?.find(p => p.id === invite.accepted_by);
+          // Combinar dados
+          athletesList = athletesData.map(athlete => {
+            const profile = profilesData?.find(p => p.id === athlete.profile_id);
             
-            // Calcular idade
             const age = profile?.birth_date ? 
-              new Date().getFullYear() - new Date(profile.birth_date).getFullYear() : null;
+              new Date().getFullYear() - new Date(profile.birth_date).getFullYear() : 
+              athlete.age;
             
-            // Determinar status
-            const lastActivity = invite.accepted_at;
+            const lastActivity = athlete.updated_at || athlete.created_at;
             const daysSinceActivity = Math.floor(
               (new Date() - new Date(lastActivity)) / (1000 * 60 * 60 * 24)
             );
@@ -91,31 +101,43 @@ const Athletes = () => {
             else if (daysSinceActivity > 14) status = 'warning';
 
             return {
-              id: profile?.id || invite.accepted_by,
-              name: profile?.name || invite.athlete_name,
-              email: profile?.email || invite.athlete_email,
+              id: profile?.id || athlete.profile_id,
+              athleteRecordId: athlete.id,
+              name: profile?.name || profile?.email?.split('@')[0] || 'Sem nome',
+              email: profile?.email || 'Sem email',
               phone: profile?.phone || '',
               avatar: profile?.avatar_url,
               age: age,
-              height: profile?.height,
-              weight: profile?.weight,
+              height: athlete.height || profile?.height,
+              weight: athlete.weight || profile?.weight,
+              goal: athlete.goal || 'Não definido',
               goals: profile?.goals || [],
               status: status,
               setupComplete: profile?.setup_complete || false,
               profileComplete: profile?.profile_complete || false,
-              joinedAt: invite.accepted_at,
+              joinedAt: athlete.created_at,
               lastActivity: lastActivity,
-              daysSinceActivity: daysSinceActivity,
-              inviteId: invite.id
+              daysSinceActivity: daysSinceActivity
             };
           });
         }
       }
 
-      // 4. Processar convites pendentes
+      // 3. BUSCAR CONVITES PENDENTES
+      const { data: pendingInvites, error: invitesError } = await supabase
+        .from('invites')
+        .select('*')
+        .eq('trainer_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (invitesError) {
+        console.error('⚠️ Erro ao buscar convites:', invitesError);
+      }
+
       const invitesList = pendingInvites?.map(invite => ({
         id: invite.id,
-        name: invite.athlete_name,
+        name: invite.athlete_name || 'Sem nome',
         email: invite.athlete_email,
         status: 'pending',
         createdAt: invite.created_at,
@@ -124,15 +146,17 @@ const Athletes = () => {
         message: invite.invite_message
       })) || [];
 
-      console.log('✅ Atletas carregados:', athletesList.length);
-      console.log('📧 Convites pendentes:', invitesList.length);
+      console.log('✅ Dados carregados:', {
+        atletas: athletesList.length,
+        convites: invitesList.length
+      });
 
       setAthletes(athletesList);
       setInvites(invitesList);
       
     } catch (error) {
-      console.error('❌ Erro ao buscar atletas:', error);
-      toast.error('Erro ao carregar atletas');
+      console.error('❌ Erro geral:', error);
+      toast.error('Erro ao carregar dados');
     } finally {
       setLoading(false);
     }
@@ -140,13 +164,15 @@ const Athletes = () => {
 
   // Filtrar atletas
   const filteredAthletes = athletes.filter(athlete => {
-    const matchesSearch = athlete.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          athlete.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      athlete.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      athlete.email.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesFilter = filterStatus === 'all' || 
-                          (filterStatus === 'active' && athlete.status === 'active') ||
-                          (filterStatus === 'inactive' && athlete.status === 'inactive') ||
-                          (filterStatus === 'warning' && athlete.status === 'warning');
+    const matchesFilter = 
+      filterStatus === 'all' || 
+      (filterStatus === 'active' && athlete.status === 'active') ||
+      (filterStatus === 'inactive' && athlete.status === 'inactive') ||
+      (filterStatus === 'warning' && athlete.status === 'warning');
     
     return matchesSearch && matchesFilter;
   });
@@ -164,38 +190,64 @@ const Athletes = () => {
   };
 
   // Cancelar convite
-  const cancelInvite = async (inviteId) => {
-    if (!window.confirm('Cancelar este convite?')) return;
+
+const cancelInvite = async (inviteId) => {
+  if (!window.confirm('Cancelar este convite?')) return;
+
+  try {
+    console.log('🔄 Cancelando convite:', inviteId);
+    
+    // Opção 1: DELETE direto (mais simples e eficaz)
+    const { error } = await supabase
+      .from('invites')
+      .delete()
+      .eq('id', inviteId)
+      .eq('trainer_id', user.id);
+
+    if (error) {
+      console.error('❌ Erro Supabase:', error);
+      throw error;
+    }
+
+    // Atualizar UI localmente sem recarregar tudo
+    setInvites(prev => prev.filter(i => i.id !== inviteId));
+    toast.success('Convite cancelado!');
+    
+  } catch (error) {
+    console.error('❌ Erro ao cancelar:', error);
+    toast.error(`Erro: ${error.message || 'Falha ao cancelar convite'}`);
+  }
+};
+
+  // Remover atleta
+  const removeAthlete = async (athleteRecordId) => {
+    if (!window.confirm('Remover este atleta? Poderá ser reativado depois.')) return;
 
     try {
+      const athlete = athletes.find(a => a.athleteRecordId === athleteRecordId);
+      
+      if (!athlete) {
+        toast.error('Atleta não encontrado');
+        return;
+      }
+
       const { error } = await supabase
-        .from('invites')
-        .update({ status: 'cancelled' })
-        .eq('id', inviteId);
+        .from('athletes')
+        .delete()
+        .eq('id', athlete.athleteRecordId)
+        .eq('trainer_id', user.id);
 
       if (error) throw error;
 
-      toast.success('Convite cancelado');
+      toast.success('Atleta removido');
       fetchAthletesAndInvites();
-    } catch (error) {
-      console.error('Erro ao cancelar convite:', error);
-      toast.error('Erro ao cancelar convite');
-    }
-  };
-
-  // Remover atleta
-  const removeAthlete = async (athleteId) => {
-    if (!window.confirm('Remover este atleta? Ele poderá ser reativado depois.')) return;
-
-    try {
-      toast.info('Funcionalidade em desenvolvimento');
     } catch (error) {
       console.error('Erro ao remover atleta:', error);
       toast.error('Erro ao remover atleta');
     }
   };
 
-  // Status Badge
+  // Status Badge Component
   const StatusBadge = ({ status }) => {
     const styles = {
       active: 'bg-green-100 text-green-800',
@@ -286,7 +338,7 @@ const Athletes = () => {
         </div>
       </div>
 
-      {/* Convites Pendentes */}
+      {/* SECÇÃO DE CONVITES PENDENTES */}
       {showInvites && invites.length > 0 && (
         <div className="bg-yellow-50 rounded-lg shadow-sm p-4 mb-6">
           <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
@@ -329,7 +381,7 @@ const Athletes = () => {
         </div>
       )}
 
-      {/* Lista de Atletas */}
+      {/* TABELA DE ATLETAS */}
       {filteredAthletes.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm p-12 text-center">
           <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -458,7 +510,7 @@ const Athletes = () => {
                           <Edit className="h-4 w-4" />
                         </Link>
                         <button
-                          onClick={() => removeAthlete(athlete.id)}
+                          onClick={() => removeAthlete(athlete.athleteRecordId)}
                           className="text-red-600 hover:text-red-900"
                           title="Remover"
                         >
@@ -474,7 +526,7 @@ const Athletes = () => {
         </div>
       )}
 
-      {/* Estatísticas */}
+      {/* ESTATÍSTICAS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
         <div className="bg-white rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between">
