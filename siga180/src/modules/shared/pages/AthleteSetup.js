@@ -46,6 +46,15 @@ const AthleteSetup = () => {
     emergency_phone: ''
   });
 
+  // Handler para inputs 
+  const handleInputChange = (field) => (e) => {
+    const value = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   // Verificar token do convite
   useEffect(() => {
     const verifyInvite = async () => {
@@ -351,7 +360,7 @@ const AthleteSetup = () => {
           <input
             type="password"
             value={formData.password}
-            onChange={(e) => setFormData(prev => ({...prev, password: e.target.value}))}
+            onChange={handleInputChange('password')}
             className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
               errors.password ? 'border-red-500' : 'border-gray-300'
             }`}
@@ -368,7 +377,7 @@ const AthleteSetup = () => {
           <input
             type="password"
             value={formData.confirmPassword}
-            onChange={(e) => setFormData(prev => ({...prev, confirmPassword: e.target.value}))}
+            onChange={handleInputChange('confirmPassword')}
             className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
               errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
             }`}
@@ -392,7 +401,7 @@ const AthleteSetup = () => {
           <input
             type="text"
             value={formData.name}
-            onChange={(e) => setFormData(prev => ({...prev, name: e.target.value}))}
+            onChange={handleInputChange('name')}
             className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
               errors.name ? 'border-red-500' : 'border-gray-300'
             }`}
@@ -408,7 +417,7 @@ const AthleteSetup = () => {
           <input
             type="tel"
             value={formData.phone}
-            onChange={(e) => setFormData(prev => ({...prev, phone: e.target.value}))}
+            onChange={handleInputChange('phone')}
             className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
               errors.phone ? 'border-red-500' : 'border-gray-300'
             }`}
@@ -425,7 +434,7 @@ const AthleteSetup = () => {
           <input
             type="date"
             value={formData.birth_date}
-            onChange={(e) => setFormData(prev => ({...prev, birth_date: e.target.value}))}
+            onChange={handleInputChange('birth_date')}
             className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
               errors.birth_date ? 'border-red-500' : 'border-gray-300'
             }`}
@@ -438,7 +447,7 @@ const AthleteSetup = () => {
         <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>
         <select
           value={formData.gender}
-          onChange={(e) => setFormData(prev => ({...prev, gender: e.target.value}))}
+          onChange={handleInputChange('gender')}
           className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
             errors.gender ? 'border-red-500' : 'border-gray-300'
           }`}
@@ -466,7 +475,7 @@ const AthleteSetup = () => {
             <input
               type="number"
               value={formData.height}
-              onChange={(e) => setFormData(prev => ({...prev, height: e.target.value}))}
+              onChange={handleInputChange('height')}
               className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
                 errors.height ? 'border-red-500' : 'border-gray-300'
               }`}
@@ -484,7 +493,7 @@ const AthleteSetup = () => {
               type="number"
               step="0.1"
               value={formData.weight}
-              onChange={(e) => setFormData(prev => ({...prev, weight: e.target.value}))}
+              onChange={handleInputChange('weight')}
               className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
                 errors.weight ? 'border-red-500' : 'border-gray-300'
               }`}
@@ -501,7 +510,7 @@ const AthleteSetup = () => {
           <Activity className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
           <select
             value={formData.activity_level}
-            onChange={(e) => setFormData(prev => ({...prev, activity_level: e.target.value}))}
+            onChange={handleInputChange('activity_level')}
             className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
               errors.activity_level ? 'border-red-500' : 'border-gray-300'
             }`}
@@ -563,7 +572,7 @@ const AthleteSetup = () => {
           </label>
           <textarea
             value={formData.medical_conditions}
-            onChange={(e) => setFormData(prev => ({...prev, medical_conditions: e.target.value}))}
+            onChange={handleInputChange('medical_conditions')}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
             rows="2"
             placeholder="Ex: Diabetes, hipertensão, lesões..."
@@ -578,7 +587,7 @@ const AthleteSetup = () => {
             <input
               type="text"
               value={formData.emergency_contact}
-              onChange={(e) => setFormData(prev => ({...prev, emergency_contact: e.target.value}))}
+              onChange={handleInputChange('emergency_contact')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               placeholder="Nome do contacto"
             />
@@ -591,7 +600,7 @@ const AthleteSetup = () => {
             <input
               type="tel"
               value={formData.emergency_phone}
-              onChange={(e) => setFormData(prev => ({...prev, emergency_phone: e.target.value}))}
+              onChange={handleInputChange('emergency_phone')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               placeholder="+351 912 345 678"
             />
