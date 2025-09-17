@@ -12,10 +12,12 @@ import AddAthleteFull from '../modules/trainer/pages/AddAthleteFull';
 import EditAthlete from '../modules/trainer/pages/EditAthlete';
 import Analytics from '../modules/trainer/pages/Analytics';
 
+
 // Módulos
 import NutritionModule from '../modules/trainer/pages/Nutrition';
 import WorkoutsModule from '../modules/trainer/pages/Workouts';
 import SchedulingModule from '../modules/trainer/pages/Scheduling'; // IMPORTANTE: Confirma que este ficheiro existe!
+import FinancialsModule from '../modules/trainer/pages/Financials';
 
 // Páginas Partilhadas
 import Messages from '../modules/shared/pages/Messages';
@@ -54,6 +56,9 @@ export const TrainerRoutes = () => {
         
         {/* Messages */}
         <Route path="/messages" element={<Messages />} />
+
+        {/*finanças*/}
+        <Route path="/financials/*" element={<FinancialsModule />} />
       </Routes>
     </Layout>
   );
