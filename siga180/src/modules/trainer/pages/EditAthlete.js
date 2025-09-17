@@ -387,51 +387,121 @@ const EditAthlete = () => {
            formData.goals.length > 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      setSaving(true);
+  // handleSubmit corrigido - substitui o teu handleSubmit atual
 
-      const updateData = {
-        ...formData,
-        height: formData.height ? parseInt(formData.height) : null,
-        weight: formData.weight ? parseFloat(formData.weight) : null,
-        body_fat_percentage: formData.body_fat_percentage ? parseFloat(formData.body_fat_percentage) : null,
-        muscle_mass: formData.muscle_mass ? parseFloat(formData.muscle_mass) : null,
-        profile_complete: checkAnamnesesComplete(),
-        anamnese_completed_at: checkAnamnesesComplete() ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString()
-      };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  try {
+    setSaving(true);
+    console.log('📝 Guardando anamnese...');
 
-      // Remover campos temporários
-      delete updateData.customGoal;
-      delete updateData.customChallenge;
-      delete updateData.customCondition;
-      delete updateData.customChronic;
-      delete updateData.customEquipment;
-      delete updateData.customRestriction;
-      delete updateData.customSupplement;
-      delete updateData.customPreference;
-      delete updateData.customAversion;
+    // Criar objeto com APENAS os campos que existem na BD
+    const updateData = {
+      // Dados Pessoais
+      name: formData.name || null,
+      phone: formData.phone || null,
+      birth_date: formData.birth_date || null,
+      gender: formData.gender || null,
+      occupation: formData.occupation || null,
+      
+      // Dados Físicos
+      height: formData.height ? parseInt(formData.height) : null,
+      weight: formData.weight ? parseFloat(formData.weight) : null,
+      body_fat_percentage: formData.body_fat_percentage ? parseFloat(formData.body_fat_percentage) : null,
+      muscle_mass: formData.muscle_mass ? parseFloat(formData.muscle_mass) : null,
+      
+      // Arrays - garantir que são arrays válidos
+      goals: Array.isArray(formData.goals) && formData.goals.length > 0 ? formData.goals : [],
+      medical_conditions: Array.isArray(formData.medical_conditions) && formData.medical_conditions.length > 0 ? formData.medical_conditions : [],
+      dietary_restrictions: Array.isArray(formData.dietary_restrictions) && formData.dietary_restrictions.length > 0 ? formData.dietary_restrictions : [],
+      
+      // Contacto de Emergência
+      emergency_contact: formData.emergency_contact || null,
+      emergency_phone: formData.emergency_phone || null,
+      
+      // Outros campos confirmados
+      training_experience: formData.training_experience || null,
+      activity_level: formData.activity_level || null,
+      
+      // Metadata
+      profile_complete: checkAnamnesesComplete(),
+      updated_at: new Date().toISOString()
+    };
 
-      const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast.success('Anamnese atualizada com sucesso!');
-      navigate(`/athletes/${id}`);
-
-    } catch (error) {
-      console.error('Erro:', error);
-      toast.error('Erro ao atualizar anamnese');
-    } finally {
-      setSaving(false);
+    // Se anamnese completa, adicionar timestamp
+    if (checkAnamnesesComplete()) {
+      updateData.anamnese_completed_at = new Date().toISOString();
     }
-  };
+
+    console.log('📊 Dados a enviar:', updateData);
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      console.error('❌ Erro Supabase:', error);
+      
+      // Se for erro de coluna inexistente, mostrar quais campos falharam
+      if (error.message?.includes('column')) {
+        const match = error.message.match(/column "([^"]+)" of relation/);
+        const problemField = match ? match[1] : 'desconhecido';
+        
+        toast.error(`Campo "${problemField}" não existe na BD. Contacte o suporte.`);
+        
+        // Tentar guardar só os campos básicos
+        console.log('⚠️ Tentando guardar apenas campos básicos...');
+        
+        const basicUpdate = {
+          name: formData.name,
+          phone: formData.phone,
+          birth_date: formData.birth_date,
+          gender: formData.gender,
+          height: formData.height ? parseInt(formData.height) : null,
+          weight: formData.weight ? parseFloat(formData.weight) : null,
+          updated_at: new Date().toISOString()
+        };
+        
+        const { data: basicData, error: basicError } = await supabase
+          .from('profiles')
+          .update(basicUpdate)
+          .eq('id', id)
+          .select();
+        
+        if (!basicError) {
+          toast.warning('Apenas dados básicos foram guardados');
+          console.log('✅ Dados básicos guardados:', basicData);
+          
+          // Reload para ver o que foi guardado
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          throw basicError;
+        }
+      } else {
+        throw error;
+      }
+    } else {
+      console.log('✅ Sucesso! Dados guardados:', data);
+      toast.success('✅ Anamnese guardada com sucesso!');
+      
+      // Navegar após sucesso
+      setTimeout(() => {
+        navigate(`/athletes/${id}`);
+      }, 1000);
+    }
+
+  } catch (error) {
+    console.error('❌ Erro geral:', error);
+    toast.error(error.message || 'Erro ao guardar anamnese');
+  } finally {
+    setSaving(false);
+  }
+};
 
   if (loading) {
     return (
