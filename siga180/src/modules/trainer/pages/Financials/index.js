@@ -1,23 +1,10 @@
 // src/modules/trainer/pages/Financials/index.js
 
-/**
- * Financial Module - Main Export File
- * SIGA180 - Sistema de Gestão Financeira
- * 
- * Este ficheiro centraliza todas as exportações do módulo Financials
- * facilitando a importação e manutenção do código.
- */
+import { lazy } from 'react';
 
-// ============================================
-// COMPONENTE PRINCIPAL
-// ============================================
 export { default } from './FinancialsPage';
 export { default as FinancialsPage } from './FinancialsPage';
 
-// ============================================
-// VIEWS (Lazy Loading Support)
-// ============================================
-import { lazy } from 'react';
 
 export const DashboardView = lazy(() => 
   import('./views/DashboardView').then(module => ({ default: module.default || DashboardView }))
