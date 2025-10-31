@@ -5,31 +5,47 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './modules/shared/hooks/useAuth';
 import { AppRouter } from './routes/AppRouter';
 
-// Import opcional do NotificationWorker
-let notificationWorker = null;
-try {
-  notificationWorker = require('./services/notifications/notificationWorker').default;
-} catch (e) {
-  console.log('NotificationWorker não encontrado - sistema de emails funcionará sem worker automático');
-}
-
 function App() {
   useEffect(() => {
-    // Só tenta iniciar se o worker existir
-    if (!notificationWorker) return;
+    let workerInstance = null;
+    let workerStarted = false;
+    let isUnmounted = false;
 
-    const shouldStart = 
-      process.env.NODE_ENV === 'production' || 
-      process.env.REACT_APP_ENABLE_NOTIFICATIONS === 'true';
+    const loadWorker = async () => {
+      try {
+        const module = await import('./services/notifications/notificationWorker');
+        workerInstance = module?.default;
 
-    if (shouldStart) {
-      console.log('🚀 NotificationWorker ativado');
-      notificationWorker.start();
+        if (!workerInstance) {
+          return;
+        }
 
-      return () => {
-        notificationWorker.stop();
-      };
-    }
+        const shouldStart =
+          process.env.NODE_ENV === 'production' ||
+          process.env.REACT_APP_ENABLE_NOTIFICATIONS === 'true';
+
+        if (shouldStart && !isUnmounted) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('🚀 NotificationWorker ativado');
+          }
+          workerInstance.start?.();
+          workerStarted = true;
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.info('NotificationWorker não encontrado ou falhou ao carregar.', error);
+        }
+      }
+    };
+
+    loadWorker();
+
+    return () => {
+      isUnmounted = true;
+      if (workerInstance && workerStarted && typeof workerInstance.stop === 'function') {
+        workerInstance.stop();
+      }
+    };
   }, []);
 
   return (

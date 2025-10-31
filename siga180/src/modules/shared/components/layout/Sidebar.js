@@ -15,15 +15,17 @@ import {
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen = false, onClose }) => {
   const location = useLocation();
   const { user } = useAuth();
 
   const isAthlete = user?.role === 'athlete';
   const isTrainer = user?.role === 'trainer';
-  
+
   // Debug para verificar
-  console.log('🎯 Sidebar - User Role:', user?.role, { isAthlete, isTrainer });
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('🎯 Sidebar - User Role:', user?.role, { isAthlete, isTrainer });
+  }
   
   // Menu items para TRAINER
   const trainerMenuItems = [
@@ -50,9 +52,20 @@ const Sidebar = () => {
   ];
 
   const menuItems = isAthlete ? athleteMenuItems : trainerMenuItems;
-  
+
+  const baseClasses = 'fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 shadow-lg flex flex-col transition-transform duration-200 ease-in-out lg:static lg:min-h-screen lg:shadow-none lg:flex';
+  const visibilityClasses = isOpen ? 'translate-x-0' : '-translate-x-full';
+
+  const handleNavigate = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
+    <aside
+      className={`${baseClasses} ${visibilityClasses} lg:translate-x-0`}
+    >
       <nav className="p-4 space-y-1">
         {menuItems.map((item) => {
           const Icon = item.icon;
@@ -62,6 +75,7 @@ const Sidebar = () => {
             <Link
               key={item.id}
               to={item.path}
+              onClick={handleNavigate}
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive
                   ? 'bg-[#E8ECE3] text-[#333333]'

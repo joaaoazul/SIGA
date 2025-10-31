@@ -34,56 +34,67 @@ const LoadingScreen = () => {
 
 export const AppRouter = () => {
   const { user, loading } = useAuth();
-  
+  const showDebug = process.env.NODE_ENV !== 'production' && process.env.REACT_APP_ENABLE_DEBUG !== 'false';
+
   // Debug logs (remover em produção)
-  console.log('🔍 AppRouter Render:', { 
-    loading, 
-    userExists: !!user, 
-    userEmail: user?.email,
-    userRole: user?.role 
-  });
+  if (showDebug) {
+    console.log('🔍 AppRouter Render:', {
+      loading,
+      userExists: !!user,
+      userEmail: user?.email,
+      userRole: user?.role
+    });
+  }
   
   // Loading State
   if (loading) {
     return (
       <>
         <LoadingScreen />
-        <DebugAuth />
+        {showDebug && <DebugAuth />}
       </>
     );
   }
-  
+
   // No User - Public Routes
   if (!user) {
-    console.log('👤 No user - showing PublicRoutes');
+    if (showDebug) {
+      console.log('👤 No user - showing PublicRoutes');
+    }
     return (
       <>
         <PublicRoutes />
-        <DebugAuth />
+        {showDebug && <DebugAuth />}
       </>
     );
   }
-  
+
   // Get user role
   const userRole = user.role || user.user_metadata?.role || 'athlete';
-  console.log('👤 User role:', userRole);
-  
+  if (showDebug) {
+    console.log('👤 User role:', userRole);
+  }
+
   // Render routes based on role
   if (userRole === 'trainer') {
-    console.log('📍 Loading TrainerRoutes');
+    if (showDebug) {
+      console.log('📍 Loading TrainerRoutes');
+    }
     return (
       <>
         <TrainerRoutes />
-        <DebugAuth />
+        {showDebug && <DebugAuth />}
       </>
     );
   } else {
     // Default para athlete (inclui admin ou qualquer outro role)
-    console.log('📍 Loading AthleteRoutes');
+    if (showDebug) {
+      console.log('📍 Loading AthleteRoutes');
+    }
     return (
       <>
         <AthleteRoutes />
-        <DebugAuth />
+        {showDebug && <DebugAuth />}
       </>
     );
   }
