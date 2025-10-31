@@ -1,31 +1,43 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 
 const Layout = ({ children, title = 'Home' }) => {
-  // Em produção, isto viria do contexto de autenticação
-  const user = {
-    name: 'John Doe',
-    avatar: 'https://i.pravatar.cc/150?img=5',
-    email: 'john@example.com'
-
-  };
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // Bloquear scroll do body
-    // document.body.style.overflow = 'hidden';
+    document.body.style.overflow = isSidebarOpen ? 'hidden' : 'auto';
 
-    // Cleanup para voltar ao scroll normal ao desmontar o Layout
     return () => {
       document.body.style.overflow = 'auto';
     };
-  }, []);
+  }, [isSidebarOpen]);
+
+  const handleToggleSidebar = () => {
+    setIsSidebarOpen((prev) => !prev);
+  };
+
+  const handleCloseSidebar = () => {
+    setIsSidebarOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header title={title} user={user} />
+      <Header
+        title={title}
+        onMenuToggle={handleToggleSidebar}
+        isSidebarOpen={isSidebarOpen}
+      />
       <div className="flex">
-        <Sidebar />
-        <main className="flex-1">
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm transition-opacity lg:hidden"
+            onClick={handleCloseSidebar}
+            aria-hidden="true"
+          />
+        )}
+        <Sidebar isOpen={isSidebarOpen} onClose={handleCloseSidebar} />
+        <main className="flex-1 min-h-[calc(100vh-4rem)] bg-gray-50">
           {children}
         </main>
       </div>

@@ -4,7 +4,7 @@
 // =============================================
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { 
   Bell, 
@@ -22,9 +22,8 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const Header = ({ onMenuToggle, isSidebarOpen }) => {
+const Header = ({ onMenuToggle, isSidebarOpen, title }) => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { user, signOut } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -108,11 +107,17 @@ const Header = ({ onMenuToggle, isSidebarOpen }) => {
             >
               {isSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
-            
+
             <div className="flex items-center ml-4 lg:ml-0">
               <Dumbbell className="h-8 w-8 text-[#333333]" />
               <span className="ml-2 text-xl font-bold text-[#333333]">180 by Binho</span>
             </div>
+
+            {title && (
+              <span className="hidden ml-6 text-sm font-medium text-gray-500 lg:inline-flex">
+                {title}
+              </span>
+            )}
           </div>
 
           {/* Center - Search */}

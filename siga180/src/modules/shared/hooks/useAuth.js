@@ -1,22 +1,80 @@
 // siga180/src/modules/shared/hooks/useAuth.js
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../../../services/supabase/supabaseClient';
+import {
+  clearProfileCache,
+  resolveUserWithProfile
+} from './profileUtils';
 
 const AuthContext = createContext({});
+const isDebug = process.env.NODE_ENV !== 'production';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const userRef = useRef(null);
+
+  const checkUser = useCallback(async () => {
+    try {
+      if (isDebug) {
+        console.log('🔍 Checking current user...');
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        if (isDebug) {
+          console.log('👤 User found:', user.email);
+        }
+
+        const userWithRole = await resolveUserWithProfile(user);
+
+        if (isDebug) {
+          console.log('✅ User role:', userWithRole?.role);
+        }
+
+        setUser(userWithRole);
+      } else {
+        if (isDebug) {
+          console.log('❌ No user found');
+        }
+        setUser(null);
+      }
+    } catch (error) {
+      if (isDebug) {
+        console.error('❌ Error checking user:', error);
+      }
+      setUser(null);
+    } finally {
+      if (isDebug) {
+        console.log('✅ Check complete, setting loading to false');
+      }
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    console.log('🔐 AuthProvider: Iniciando...');
-    
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    if (isDebug) {
+      console.log('🔐 AuthProvider: Iniciando...');
+    }
+
     // Timeout de segurança
     const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.error('⚠️ Loading timeout - forçando false');
-        setLoading(false);
-      }
+      setLoading((prev) => {
+        if (!prev) {
+          return prev;
+        }
+
+        if (isDebug) {
+          console.error('⚠️ Loading timeout - forçando false');
+        }
+
+        return false;
+      });
     }, 5000); // 5 segundos
 
     // Check current session
@@ -25,60 +83,35 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔄 Auth State Changed:', event, session?.user?.email);
-        
+        if (isDebug) {
+          console.log('🔄 Auth State Changed:', event, session?.user?.email);
+        }
+
         if (event === 'SIGNED_IN' && session) {
-          // Buscar role do perfil quando fizer login - QUERY MAIS ROBUSTA
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id);
-          
-          const profile = profiles?.[0];
-          console.log('📊 Profile data on SIGNED_IN:', profile);
-          
-          // Fallback para trainer se for o teu email
-          let finalRole = profile?.role;
-          if (!finalRole && session.user.email === 'joaoazul74@gmail.com') {
-            finalRole = 'trainer';
+          const userWithRole = await resolveUserWithProfile(session.user);
+
+          if (isDebug) {
+            console.log('✅ User logged in with role:', userWithRole?.role);
           }
-          
-          const userWithRole = {
-            ...session.user,
-            role: finalRole || 'athlete',
-            name: profile?.name || session.user.email
-          };
-          
-          console.log('✅ User logged in with role:', userWithRole.role);
+
           setUser(userWithRole);
           setLoading(false);
-          
+
         } else if (event === 'SIGNED_OUT') {
-          console.log('👋 User logged out');
+          if (isDebug) {
+            console.log('👋 User logged out');
+          }
+          clearProfileCache(userRef.current?.id);
           setUser(null);
           setLoading(false);
-          
+
         } else if (event === 'USER_UPDATED' && session) {
-          // Atualizar dados do user
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id);
-          
-          const profile = profiles?.[0];
-          
-          let finalRole = profile?.role;
-          if (!finalRole && session.user.email === 'joaoazul74@gmail.com') {
-            finalRole = 'trainer';
+          const updatedUser = await resolveUserWithProfile(session.user, { forceRefresh: true });
+
+          if (isDebug) {
+            console.log('🔄 User updated:', updatedUser?.role);
           }
-          
-          const updatedUser = {
-            ...session.user,
-            role: finalRole || 'athlete',
-            name: profile?.name || session.user.email
-          };
-          
-          console.log('🔄 User updated:', updatedUser.role);
+
           setUser(updatedUser);
           setLoading(false);
         }
@@ -89,131 +122,78 @@ export const AuthProvider = ({ children }) => {
       clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
-  }, []); // Array vazio - só executa uma vez
-
-  const checkUser = async () => {
-    try {
-      console.log('🔍 Checking current user...');
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        console.log('👤 User found:', user.email);
-        
-        // Query mais robusta sem .single() para evitar erros
-        const { data: profiles, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id);
-        
-        if (profileError) {
-          console.error('❌ Error fetching profile:', profileError);
-        }
-        
-        const profile = profiles?.[0];
-        console.log('📊 Profile fetched:', profile);
-        console.log('📊 Profile role:', profile?.role);
-        
-        // Fallback específico para ti
-        let finalRole = profile?.role;
-        if (!finalRole && user.email === 'joaoazul74@gmail.com') {
-          console.log('⚠️ Using trainer fallback for joaoazul74@gmail.com');
-          finalRole = 'trainer';
-        }
-        
-        const userWithRole = {
-          ...user,
-          role: finalRole || 'athlete',
-          name: profile?.name || user.email
-        };
-        
-        console.log('✅ User role:', userWithRole.role);
-        setUser(userWithRole);
-      } else {
-        console.log('❌ No user found');
-        setUser(null);
-      }
-    } catch (error) {
-      console.error('❌ Error checking user:', error);
-      setUser(null);
-    } finally {
-      console.log('✅ Check complete, setting loading to false');
-      setLoading(false);
-    }
-  };
+  }, [checkUser]);
 
   const signIn = async (email, password) => {
-    console.log('🔐 Attempting login for:', email);
-    
+    if (isDebug) {
+      console.log('🔐 Attempting login for:', email);
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password
       });
-      
+
       if (error) {
-        console.error('❌ Login error:', error);
+        if (isDebug) {
+          console.error('❌ Login error:', error);
+        }
         return { data: null, error };
       }
-      
+
       if (data.user) {
-        console.log('✅ Login successful:', data.user.email);
-        
-        // Buscar role após login - query mais robusta
-        const { data: profiles, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id);
-        
-        if (profileError) {
-          console.error('⚠️ Profile fetch error:', profileError);
+        if (isDebug) {
+          console.log('✅ Login successful:', data.user.email);
         }
-        
-        const profile = profiles?.[0];
-        console.log('📊 Profile on signIn:', profile);
-        
-        // Fallback para trainer
-        let finalRole = profile?.role;
-        if (!finalRole && data.user.email === 'joaoazul74@gmail.com') {
-          finalRole = 'trainer';
+
+        const userWithRole = await resolveUserWithProfile(data.user);
+
+        if (isDebug) {
+          console.log('✅ Setting user with role:', userWithRole?.role);
         }
-        
-        const userWithRole = {
-          ...data.user,
-          role: finalRole || 'athlete',
-          name: profile?.name || data.user.email
-        };
-        
-        console.log('✅ Setting user with role:', userWithRole.role);
+
         setUser(userWithRole);
         setLoading(false);
-        
+
         return { data: { ...data, user: userWithRole }, error: null };
       }
-      
+
       return { data, error };
     } catch (error) {
-      console.error('❌ SignIn exception:', error);
+      if (isDebug) {
+        console.error('❌ SignIn exception:', error);
+      }
       return { data: null, error };
     }
   };
 
   const signOut = async () => {
-    console.log('👋 Signing out...');
-    
+    if (isDebug) {
+      console.log('👋 Signing out...');
+    }
+
     try {
       const { error } = await supabase.auth.signOut();
-      
+
       if (!error) {
+        const currentUserId = userRef.current?.id;
         setUser(null);
-        console.log('✅ Signed out successfully');
+        if (isDebug) {
+          console.log('✅ Signed out successfully');
+        }
+        clearProfileCache(currentUserId);
       } else {
-        console.error('❌ SignOut error:', error);
+        if (isDebug) {
+          console.error('❌ SignOut error:', error);
+        }
       }
-      
+
       return { error };
     } catch (error) {
-      console.error('❌ SignOut exception:', error);
+      if (isDebug) {
+        console.error('❌ SignOut exception:', error);
+      }
       return { error };
     }
   };
